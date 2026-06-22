@@ -1,0 +1,51 @@
+experiment_name: phase0_smoke_eval
+output_dir: runs
+
+datasets:
+  - name: tiny_local_eval
+    source: local_jsonl
+    path: data/eval/tiny_eval.jsonl
+    split: validation
+    question_type: null
+    domain: general
+    sample_limit: 10
+    metadata:
+      description: Tiny normalized EvalSample JSONL for smoke testing.
+
+pipelines:
+  - name: fixed_bge_vector_no_rerank_openrouter
+    chunker:
+      type: fixed
+      chunk_size: 512
+      chunk_overlap: 64
+
+    embedder:
+      provider: bge
+      model: BAAI/bge-small-en-v1.5
+      batch_size: 32
+
+    retriever:
+      type: vector
+      top_k: 5
+
+    reranker:
+      type: none
+
+    generator:
+      provider: openrouter
+      api_format: openai_compatible
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+      temperature: 0.0
+      max_tokens: 512
+      cost_usd: 0.0
+
+    judge:
+      provider: openrouter
+      api_format: openai_compatible
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+      temperature: 0.0
+      max_tokens: 512
+      cost_usd: 0.0
+
+    metadata:
+      purpose: Minimal Phase 0 config validation fixture.

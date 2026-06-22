@@ -1,0 +1,275 @@
+version: 1
+description: Dataset catalog for RAG evaluation dataset references.
+
+datasets:
+  natural_questions:
+    display_name: Natural Questions
+    source: huggingface
+    dataset_name: google-research-datasets/natural_questions
+    dataset_config: null
+    default_split: validation
+    url: https://huggingface.co/datasets/google-research-datasets/natural_questions
+    question_types: [factoid]
+    domain: general
+    normalizer: natural_questions
+    local_normalized_path: data/normalized/eval_samples/natural_questions/validation.jsonl
+
+  trivia_qa:
+    display_name: TriviaQA
+    source: huggingface
+    dataset_name: mandarjoshi/trivia_qa
+    dataset_config: rc
+    default_split: validation
+    url: https://huggingface.co/datasets/mandarjoshi/trivia_qa
+    question_types: [factoid]
+    domain: general
+    normalizer: trivia_qa
+    local_normalized_path: data/normalized/eval_samples/trivia_qa/validation.jsonl
+
+  squad_v2:
+    display_name: SQuAD 2.0
+    source: huggingface
+    dataset_name: rajpurkar/squad_v2
+    dataset_config: null
+    default_split: validation
+    url: https://huggingface.co/datasets/rajpurkar/squad_v2
+    question_types: [factoid, unanswerable]
+    domain: general
+    normalizer: squad_v2
+    local_normalized_path: data/normalized/eval_samples/squad_v2/validation.jsonl
+
+  hotpot_qa:
+    display_name: HotpotQA
+    source: huggingface
+    dataset_name: hotpotqa/hotpot_qa
+    dataset_config: distractor
+    default_split: validation
+    url: https://huggingface.co/datasets/hotpotqa/hotpot_qa
+    question_types: [multi_hop]
+    domain: general
+    normalizer: hotpot_qa
+    local_normalized_path: data/normalized/eval_samples/hotpot_qa/validation.jsonl
+
+  musique:
+    display_name: MuSiQue
+    source: huggingface
+    dataset_name: voidful/MuSiQue
+    dataset_config: null
+    default_split: validation
+    url: https://huggingface.co/datasets/voidful/MuSiQue
+    question_types: [multi_hop]
+    domain: general
+    normalizer: musique
+    local_normalized_path: data/normalized/eval_samples/musique/validation.jsonl
+    metadata:
+      loader_path: json
+      data_files:
+        train: hf://datasets/voidful/MuSiQue/musique_ans_v1.0_train.jsonl
+        validation: hf://datasets/voidful/MuSiQue/musique_ans_v1.0_dev.jsonl
+        test: hf://datasets/voidful/MuSiQue/musique_ans_v1.0_test.jsonl
+
+  two_wiki_multihop_qa:
+    display_name: 2WikiMultiHopQA
+    source: huggingface
+    dataset_name: parquet
+    dataset_config: null
+    default_split: validation
+    url: https://huggingface.co/datasets/xanhho/2WikiMultihopQA
+    question_types: [multi_hop]
+    domain: general
+    normalizer: two_wiki_multihop_qa
+    local_normalized_path: data/normalized/eval_samples/two_wiki_multihop_qa/validation.jsonl
+    metadata:
+      loader_path: parquet
+      data_files:
+        train: hf://datasets/xanhho/2WikiMultihopQA/train.parquet
+        validation: hf://datasets/xanhho/2WikiMultihopQA/dev.parquet
+        test: hf://datasets/xanhho/2WikiMultihopQA/test.parquet
+
+  qasper:
+    display_name: QASPER
+    source: huggingface
+    dataset_name: parquet
+    dataset_config: null
+    default_split: validation
+    url: https://huggingface.co/datasets/allenai/qasper
+    question_types: [abstractive]
+    domain: scientific
+    normalizer: qasper
+    local_normalized_path: data/normalized/eval_samples/qasper/validation.jsonl
+    metadata:
+      loader_path: parquet
+      data_files:
+        train: https://huggingface.co/datasets/allenai/qasper/resolve/refs%2Fconvert%2Fparquet/qasper/train/0000.parquet
+        validation: https://huggingface.co/datasets/allenai/qasper/resolve/refs%2Fconvert%2Fparquet/qasper/validation/0000.parquet
+        test: https://huggingface.co/datasets/allenai/qasper/resolve/refs%2Fconvert%2Fparquet/qasper/test/0000.parquet
+
+  narrativeqa:
+    display_name: NarrativeQA
+    source: huggingface
+    dataset_name: deepmind/narrativeqa
+    dataset_config: null
+    default_split: validation
+    url: https://huggingface.co/datasets/deepmind/narrativeqa
+    question_types: [abstractive]
+    domain: long_context
+    normalizer: narrativeqa
+    local_normalized_path: data/normalized/eval_samples/narrativeqa/validation.jsonl
+
+  quality:
+    display_name: QuALITY
+    source: huggingface
+    dataset_name: parquet
+    dataset_config: null
+    default_split: validation
+    url: https://huggingface.co/datasets/yuvalkirstain/quality
+    question_types: [abstractive]
+    domain: long_context
+    normalizer: quality
+    local_normalized_path: data/normalized/eval_samples/quality/validation.jsonl
+    metadata:
+      loader_path: parquet
+      data_files:
+        train: https://huggingface.co/datasets/yuvalkirstain/quality/resolve/refs%2Fconvert%2Fparquet/default/train/0000.parquet
+        validation: https://huggingface.co/datasets/yuvalkirstain/quality/resolve/refs%2Fconvert%2Fparquet/default/validation/0000.parquet
+
+  cuad:
+    display_name: CUAD
+    source: huggingface
+    dataset_name: theatticusproject/cuad
+    dataset_config: null
+    default_split: train
+    url: https://huggingface.co/datasets/theatticusproject/cuad
+    question_types: [factoid]
+    domain: legal
+    normalizer: cuad
+    local_normalized_path: data/normalized/eval_samples/cuad/train.jsonl
+
+  legalbench:
+    display_name: LegalBench
+    source: huggingface
+    dataset_name: nguha/legalbench
+    dataset_config: null
+    default_split: test
+    url: https://huggingface.co/datasets/nguha/legalbench
+    question_types: [factoid]
+    domain: legal
+    normalizer: legalbench
+    local_normalized_path: data/normalized/eval_samples/legalbench/test.jsonl
+
+  med_qa:
+    display_name: MedQA (USMLE)
+    source: huggingface
+    dataset_name: json
+    dataset_config: null
+    default_split: test
+    url: https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options-hf
+    question_types: [factoid]
+    domain: medical
+    normalizer: med_qa
+    local_normalized_path: data/normalized/eval_samples/med_qa/test.jsonl
+    metadata:
+      loader_path: json
+      data_files:
+        train: https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options-hf/resolve/main/train.json
+        validation: https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options-hf/resolve/main/dev.json
+        test: https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options-hf/resolve/main/test.json
+
+  pubmedqa:
+    display_name: PubMedQA
+    source: huggingface
+    dataset_name: qiaojin/PubMedQA
+    dataset_config: pqa_labeled
+    default_split: train
+    url: https://huggingface.co/datasets/qiaojin/PubMedQA
+    question_types: [factoid]
+    domain: medical
+    normalizer: pubmedqa
+    local_normalized_path: data/normalized/eval_samples/pubmedqa/train.jsonl
+
+  finqa:
+    display_name: FinQA
+    source: huggingface
+    dataset_name: parquet
+    dataset_config: null
+    default_split: test
+    url: https://huggingface.co/datasets/dreamerdeo/finqa
+    question_types: [factoid]
+    domain: finance
+    normalizer: finqa
+    local_normalized_path: data/normalized/eval_samples/finqa/test.jsonl
+    metadata:
+      loader_path: parquet
+      data_files:
+        train: https://huggingface.co/datasets/dreamerdeo/finqa/resolve/refs%2Fconvert%2Fparquet/default/train/0000.parquet
+        validation: https://huggingface.co/datasets/dreamerdeo/finqa/resolve/refs%2Fconvert%2Fparquet/default/validation/0000.parquet
+        test: https://huggingface.co/datasets/dreamerdeo/finqa/resolve/refs%2Fconvert%2Fparquet/default/test/0000.parquet
+
+  conala:
+    display_name: CoNaLa
+    source: huggingface
+    dataset_name: parquet
+    dataset_config: null
+    default_split: train
+    url: https://huggingface.co/datasets/neulab/conala
+    question_types: [factoid]
+    domain: code
+    normalizer: conala
+    local_normalized_path: data/normalized/eval_samples/conala/train.jsonl
+    metadata:
+      loader_path: parquet
+      data_files:
+        train: https://huggingface.co/datasets/neulab/conala/resolve/refs%2Fconvert%2Fparquet/curated/train/0000.parquet
+        test: https://huggingface.co/datasets/neulab/conala/resolve/refs%2Fconvert%2Fparquet/curated/test/0000.parquet
+
+  codesearchnet:
+    display_name: CodeSearchNet
+    source: huggingface
+    dataset_name: code-search-net/code_search_net
+    dataset_config: all
+    default_split: train
+    url: https://huggingface.co/datasets/code-search-net/code_search_net
+    question_types: [factoid]
+    domain: code
+    normalizer: codesearchnet
+    local_normalized_path: data/normalized/eval_samples/codesearchnet/train.jsonl
+
+  beir:
+    display_name: BEIR
+    source: huggingface
+    dataset_name: parquet
+    dataset_config: null
+    default_split: test
+    url: https://huggingface.co/datasets/BeIR/nq
+    question_types: [factoid]
+    domain: retrieval
+    normalizer: beir
+    local_normalized_path: data/normalized/eval_samples/beir/test.jsonl
+    metadata:
+      loader_path: parquet
+      data_files:
+        test: hf://datasets/BeIR/nq/queries/queries-00000-of-00001.parquet
+
+  rgb:
+    display_name: RGB
+    source: local_jsonl
+    dataset_name: null
+    dataset_config: null
+    default_split: test
+    url: https://github.com/chen700564/RGB
+    question_types: [factoid, adversarial]
+    domain: robustness
+    normalizer: rgb
+    local_normalized_path: data/normalized/eval_samples/rgb/test.jsonl
+
+  ragas_testset:
+    display_name: RAGAS Testset
+    source: local_jsonl
+    dataset_name: null
+    dataset_config: null
+    default_split: generated
+    url: https://docs.ragas.io/en/latest/getstarted/testset_generation
+    question_types: [factoid, multi_hop, abstractive, adversarial, comparative, unanswerable]
+    domain: synthetic
+    normalizer: ragas
+    local_normalized_path: data/normalized/eval_samples/ragas/generated.jsonl
