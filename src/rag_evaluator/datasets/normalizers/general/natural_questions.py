@@ -21,12 +21,12 @@ class NaturalQuestionsNormalizer(DatasetNormalizer):
         split: str,
     ) -> EvalSample:
         source_id = self.source_id(record, "id", "example_id")
-        question = record.get("question") or record.get("question_text")
+        question = self._question_text(record)
         answer = self._first_answer(record)
 
         return EvalSample(
             sample_id=self.sample_id(split, index, source_id),
-            question=str(question),
+            question=question,
             reference_answer=str(answer) if answer is not None else None,
             question_type=QuestionType.FACTOID,
             source_dataset=self.config.name,
@@ -39,6 +39,22 @@ class NaturalQuestionsNormalizer(DatasetNormalizer):
                 annotations=record.get("annotations"),
             ),
         )
+
+    def _question_text(self, record: dict[str, Any]) -> str:
+        question = record.get("question")
+        if isinstance(question, str) and question:
+            return question
+
+        if isinstance(question, dict):
+            text = question.get("text")
+            if isinstance(text, str) and text:
+                return text
+
+        question_text = record.get("question_text")
+        if isinstance(question_text, str) and question_text:
+            return question_text
+
+        return ""
 
     def _first_answer(self, record: dict[str, Any]) -> str | None:
         for key in ("short_answers", "long_answer", "annotations"):

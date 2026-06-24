@@ -22,8 +22,16 @@ class EmbedderProvider(StrEnum):
     Supported embedding providers.
     """
     OPENAI = "openai"
+    OPENROUTER = "openrouter"
     BGE = "bge"
     COHERE = "cohere"
+
+class VectorStoreProvider(StrEnum):
+    """
+    Supported vector storage.
+    """
+    MEMORY = "memory"
+    CHROMA = "chroma"
 
 class RetrieverType(StrEnum):
     """
@@ -71,8 +79,19 @@ class EmbedderConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     provider: EmbedderProvider
-    model: str
+    model: str | None = None
     batch_size: PositiveInt = 32
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+class VectorStoreConfig(BaseModel):
+    """
+    Configuration for one vector store.
+    """
+    model_config = ConfigDict(extra="forbid")
+    
+    provider: VectorStoreProvider = VectorStoreProvider.MEMORY
+    collection_name: str | None = None
+    persist_directory: str = "storage/chroma"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 class RetrieverConfig(BaseModel):
@@ -118,6 +137,7 @@ class PipelineConfig(BaseModel):
     name: str
     chunker: ChunkerConfig
     embedder: EmbedderConfig
+    store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
     retriever: RetrieverConfig
     reranker: RerankerConfig = Field(default_factory=RerankerConfig)
     generator: LLMConfig = Field(default_factory=LLMConfig)

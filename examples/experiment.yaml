@@ -20,9 +20,18 @@ pipelines:
       chunk_overlap: 64
 
     embedder:
-      provider: bge
-      model: BAAI/bge-small-en-v1.5
-      batch_size: 32
+      provider: openrouter
+      model: nvidia/llama-nemotron-embed-vl-1b-v2:free
+      batch_size: 8
+      metadata:
+        api_key_env: OPENROUTER_API_KEY
+        base_url: https://openrouter.ai/api/v1/embeddings
+        input_type: multimodal_text
+
+    store:
+      provider: chroma
+      collection_name: fixed_bge_vector_no_rerank_openrouter
+      persist_directory: storage/chroma
 
     retriever:
       type: vector
