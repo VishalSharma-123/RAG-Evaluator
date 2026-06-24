@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from rag_evaluator.config import PipelineConfig
 from rag_evaluator.ingestion.chunkers import SourceDocument, build_chunker
 from rag_evaluator.ingestion.embedders import build_embedder
-from rag_evaluator.ingestion.stores import InMemoryVectorStore
-from rag_evaluator.retrieval.base import build_retriever
+from rag_evaluator.ingestion.stores import build_vector_store
+from rag_evaluator.retrieval import build_retriever
 from rag_evaluator.schemas import Chunk, EvalResult, EvalSample, GeneratedAnswer
 from rag_evaluator.scoring.failures import classify_failures
 from rag_evaluator.scoring.retrieval import score_retrieval
@@ -79,7 +79,12 @@ def run_single_pipeline(
     embedder = build_embedder(pipeline.embedder)
     chunk_embedding = embedder.embed_texts([chunk.text for chunk in chunks])
     
-    vector_store = InMemoryVectorStore()
+    vector_store = build_vector_store(
+        provider=pipeline.store.provider.value,
+        collection_name=pipeline.store.collection_name,
+        persist_directory=pipeline.store.persist_directory,
+        metadata=pipeline.store.metadata,
+    )
     vector_store.add(chunks, chunk_embedding)
     
     retriever = build_retriever(

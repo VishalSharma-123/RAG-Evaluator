@@ -36,48 +36,65 @@ class LateChunker(Chunker):
             chunk_index = 0
 
             while anchor_start < len(sentences):
-                anchor_end = anchor_start
-                anchor_char_count = 0
-
-                while anchor_end < len(sentences):
-                    sentence = sentences[anchor_end][0]
-                    next_total = anchor_char_count + len(sentence)
-                    if anchor_end > anchor_start and next_total > self.chunk_size:
-                        break
-
-                    anchor_char_count = next_total
-                    anchor_end += 1
-
-                left = max(0, anchor_start - self.context_sentences)
-                right = min(len(sentences), anchor_end + self.context_sentences)
-
-                start_char = sentences[left][1]
-                end_char = sentences[right - 1][2]
+                anchor_end = self._find_anchor_end(sentences, anchor_start)
+                
+                expanded_start = max(0, anchor_start - self.context_sentences)
+                expanded_end = min(len(sentences), anchor_end + self.context_sentences)
+                
                 anchor_start_char = sentences[anchor_start][1]
                 anchor_end_char = sentences[anchor_end - 1][2]
-                chunk_text = document.text[start_char:end_char]
-
+                expanded_start_char = sentences[expanded_start][1]
+                expanded_end_char = sentences[expanded_end - 1][1]
+                
+                chunk_text = document.text[expanded_start_char:expanded_end_char]
+                
                 if chunk_text.strip():
                     metadata = dict(document.metadata or {})
                     metadata.update(
                         {
                             "chunking_strategy": "late",
+                            "anchor_start_sentence": anchor_start,
+                            "anchor_end_sentence": anchor_end,
                             "anchor_start_char": anchor_start_char,
                             "anchor_end_char": anchor_end_char,
+                            "expanded_start_sentence": expanded_start,
+                            "expanded_end_sentence": expanded_end,
+                            "expanded_start_char": expanded_start_char,
+                            "expanded_end_char": expanded_end_char,
                         }
                     )
+
                     chunks.append(
                         Chunk(
                             chunk_id=chunk_id(document.document_id, chunk_index),
                             document_id=document.document_id,
                             text=chunk_text,
-                            start_char=start_char,
-                            end_char=end_char,
+                            start_char=expanded_start_char,
+                            end_char=expanded_end_char,
                             metadata=metadata,
                         )
                     )
                     chunk_index += 1
-
                 anchor_start = anchor_end
-
+        
         return chunks
+
+    def _find_anchor_end(
+            self,
+            sentences: list[tuple[str, int, int]],
+            anchor_start: int,
+    ) -> int:
+        anchor_end = anchor_start
+        anchor_chars = 0
+        
+        while anchor_end < len(sentences):
+            sentence, _, _ = sentences[anchor_end]
+            next_chars = anchor_chars + len(sentence)
+            
+            if anchor_end > anchor_start and next_chars > self.chunk_size:
+                break
+            
+            anchor_chars = next_chars
+            anchor_end += 1
+        
+        return anchor_end

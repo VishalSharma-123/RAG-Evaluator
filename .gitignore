@@ -20,8 +20,10 @@ src/rag_evaluator.egg-info/
 
 runs/
 
-data/normalized/
+data/
 
-tests/
+storage/chroma/*
+!storage/chroma/.gitkeep
+
 PLAN.md
 .DS_Store/
