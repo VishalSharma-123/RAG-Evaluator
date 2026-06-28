@@ -4,9 +4,10 @@ import argparse
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import BaseModel
 
-from rag_evaluator.config import ExperimentConfig
+from rag_evaluator.config import ExperimentConfig, LLMConfig
 from rag_evaluator.datasets import load_dataset_catalog, resolve_dataset_config
 from rag_evaluator.datasets.config import DatasetConfig, DatasetSource
 from rag_evaluator.datasets.loader import load_dataset_from_config
@@ -16,6 +17,8 @@ from rag_evaluator.io import (
     export_json_schema,
     load_eval_samples_jsonl,
     load_experiment_config,
+    load_jsonl,
+    write_eval_samples_jsonl,
     write_jsonl,
 )
 from rag_evaluator.schemas import (
@@ -23,8 +26,10 @@ from rag_evaluator.schemas import (
     EvalResult,
     EvalSample,
     GeneratedAnswer,
+    QuestionType,
     RetrievedChunk,
 )
+from rag_evaluator.synthetic.models.nemotron import NemotronSyntheticGenerator
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "eval-sample": EvalSample,
@@ -239,6 +244,100 @@ def smoke_normalize_sources(
     print("Smoke normalization completed successfully for all source types.")
     return 0
 
+
+def generate_synthetic(
+        *,
+        config_path: Path | None = None,
+        chunks_path: Path | None,
+        output_path: Path | None,
+        provider: str,
+        model: str,
+        question_types: list[str] | None,
+        max_samples: int | None,
+        temperature: float,
+        max_tokens: int,
+        reasoning_enabled: bool,
+) -> int:
+    if config_path is not None:
+        experiment_config = load_experiment_config(config_path)
+        synthetic_config = experiment_config.synthetic_generation
+        if synthetic_config is None:
+            raise ValueError(
+                f"Experiment config {config_path} does not define `synthetic_generation`."
+            )
+
+        pipeline = next(
+            (
+                pipeline_config
+                for pipeline_config in experiment_config.pipelines
+                if pipeline_config.name == synthetic_config.pipeline
+            ),
+            None,
+        )
+        if pipeline is None:
+            raise ValueError(
+                f"Synthetic pipeline {synthetic_config.pipeline!r} was not found in {config_path}."
+            )
+
+        chunks_path = Path(synthetic_config.chunks_path)
+        output_path = Path(synthetic_config.output_path)
+        provider = pipeline.generator.provider.value
+        model = pipeline.generator.model
+        question_types = synthetic_config.question_types or question_types
+        max_samples = synthetic_config.max_samples if synthetic_config.max_samples is not None else max_samples
+        temperature = pipeline.generator.temperature
+        max_tokens = pipeline.generator.max_tokens
+        reasoning_enabled = bool(
+            pipeline.generator.metadata.get("reasoning_enabled", reasoning_enabled)
+        )
+        synthetic_metadata = {
+            **synthetic_config.metadata,
+            "pipeline": pipeline.name,
+        }
+    else:
+        synthetic_metadata = {}
+
+    if chunks_path is None or output_path is None:
+        raise ValueError(
+            "Synthetic generation requires resolved chunks_path and output_path."
+        )
+
+    chunk_rows = load_jsonl(chunks_path)
+    chunks = [Chunk.model_validate(row) for row in chunk_rows]
+
+    parsed_question_types = (
+        [QuestionType(question_type) for question_type in question_types]
+        if question_types
+        else None
+    )
+
+    llm_config = LLMConfig.model_validate({
+        "provider": provider,
+        "model": model,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "metadata": {
+            "reasoning_enabled": reasoning_enabled,
+        },
+    })
+    synthetic_generator = NemotronSyntheticGenerator(config=llm_config)
+    samples = synthetic_generator.generate_samples(
+        chunks,
+        question_types=parsed_question_types,
+        max_samples=max_samples,
+        metadata={
+            **synthetic_metadata,
+            "generator_model": model,
+            "generator_provider": provider,
+        },
+    )
+
+    write_eval_samples_jsonl(output_path, samples)
+
+    print(f"Generated {len(samples)} synthetic samples from {len(chunks)} chunks")
+    print(f"Wrote synthetic dataset to {output_path}")
+    return 0
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rag-evaluator",
@@ -397,10 +496,77 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional directory to write normalized JSONL outputs for each source type.",
     )
+
+    synthetic_parser = subparsers.add_parser(
+        "generate-synthetic",
+        help="Generate synthetic EvalSample JSONL from chunk JSONL using Nemotron.",
+    )
+    synthetic_parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Optional experiment YAML with a `synthetic_generation` section.",
+    )
+    synthetic_parser.add_argument(
+        "--chunks",
+        type=Path,
+        default=None,
+        help="Path to a JSONL file containing Chunk records.",
+    )
+    synthetic_parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Output JSONL path for generated EvalSample records.",
+    )
+    synthetic_parser.add_argument(
+        "--provider",
+        choices=["openrouter", "openai"],
+        default="openrouter",
+        help="LLM provider used to call the configured model.",
+    )
+    synthetic_parser.add_argument(
+        "--model",
+        type=str,
+        default="nvidia/nemotron-3-super-120b-a12b:free",
+        help="Synthetic generation model name.",
+    )
+    synthetic_parser.add_argument(
+        "--question-type",
+        dest="question_types",
+        action="append",
+        choices=[question_type.value for question_type in QuestionType],
+        default=None,
+        help="Allowed question type. Repeat to allow multiple types.",
+    )
+    synthetic_parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=None,
+        help="Optional maximum number of synthetic samples to request.",
+    )
+    synthetic_parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="Model temperature for synthetic generation.",
+    )
+    synthetic_parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=1024,
+        help="Maximum completion tokens for synthetic generation.",
+    )
+    synthetic_parser.add_argument(
+        "--reasoning-enabled",
+        action="store_true",
+        help="Enable provider-side reasoning when supported.",
+    )
     
     return parser
 
 def main() -> int:
+    load_dotenv()
     parser = build_parser()
     args = parser.parse_args()
     
@@ -441,6 +607,24 @@ def main() -> int:
             catalog_path=args.catalog,
             sample_limit=args.limit,
             output_dir=args.output_dir,
+        )
+
+    if args.command == "generate-synthetic":
+        if args.config is None and (args.chunks is None or args.output is None):
+            parser.error(
+                "generate-synthetic requires either --config or both --chunks and --output."
+            )
+        return generate_synthetic(
+            config_path=args.config,
+            chunks_path=args.chunks,
+            output_path=args.output,
+            provider=args.provider,
+            model=args.model,
+            question_types=args.question_types,
+            max_samples=args.max_samples,
+            temperature=args.temperature,
+            max_tokens=args.max_tokens,
+            reasoning_enabled=args.reasoning_enabled,
         )
     
     parser.error(f"Unknown command: {args.command}")
