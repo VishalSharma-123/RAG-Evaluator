@@ -58,3 +58,14 @@ pipelines:
 
     metadata:
       purpose: Minimal Phase 0 config validation fixture.
+
+synthetic_generation:
+  pipeline: fixed_bge_vector_no_rerank_openrouter
+  chunks_path: examples/chunks.jsonl
+  output_path: examples/synthetic_samples.jsonl
+  question_types:
+    - factoid
+    - unanswerable
+  max_samples: 4
+  metadata:
+    purpose: Synthetic QA generation smoke fixture.

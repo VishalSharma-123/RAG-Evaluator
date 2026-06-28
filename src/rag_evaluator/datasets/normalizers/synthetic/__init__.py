@@ -1,4 +1,4 @@
-"""Synthetic dataset normalizers."""
+"""synthetic dataset normalizers."""
 
 from rag_evaluator.datasets.normalizers.synthetic.ragas import RagasNormalizer
 

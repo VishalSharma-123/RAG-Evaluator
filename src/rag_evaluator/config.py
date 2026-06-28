@@ -54,6 +54,7 @@ class LLMProvider(StrEnum):
     Supported LLM API providers
     """
     OPENROUTER = "openrouter"
+    OPENAI = "openai"
 
 class ApiFormat(StrEnum):
     """
@@ -128,6 +129,19 @@ class LLMConfig(BaseModel):
     cost_usd: NonNegativeFloat = 0.0
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+class SyntheticGenerationConfig(BaseModel):
+    """
+    Configuration for generating synthetic EvalSample datasets from chunks.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    pipeline: str
+    chunks_path: str
+    output_path: str
+    question_types: list[str] = Field(default_factory=list)
+    max_samples: PositiveInt | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
 class PipelineConfig(BaseModel):
     """
     One Complete RAG pipeline configuration.
@@ -153,5 +167,6 @@ class ExperimentConfig(BaseModel):
     experiment_name: str
     datasets: list[DatasetConfig]
     pipelines: list[PipelineConfig]
+    synthetic_generation: SyntheticGenerationConfig | None = None
     output_dir: str = "runs"
     metadata: dict[str, Any] = Field(default_factory=dict)
