@@ -34,9 +34,7 @@ class SyntheticGenerationService:
             metadata: dict[str, Any] | None = None,
     ) -> list[EvalSample]:
         if not chunks:
-            raise SyntheticGenerationError(
-                "At least one chunk is needed."
-            )
+            raise SyntheticGenerationError("At least one chunk is needed.")
         
         requested_question_types = question_types or list(QuestionType)
         

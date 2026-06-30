@@ -100,7 +100,12 @@ def build_generated_answer_row(
         answer.completion_tokens,
         answer.latency_ms,
         answer.cost_usd,
-        json_dumps(answer.metadata),
+        json_dumps(
+            {
+                **answer.metadata,
+                "result_metadata": result.metadata,
+            }
+        ),
     )
 
 def build_metric_row(

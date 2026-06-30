@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 import time
 from dataclasses import dataclass
 
@@ -7,9 +8,11 @@ from rag_evaluator.config import PipelineConfig
 from rag_evaluator.ingestion.chunkers import SourceDocument, build_chunker
 from rag_evaluator.ingestion.embedders import build_embedder
 from rag_evaluator.ingestion.stores import build_vector_store
+from rag_evaluator.question_types.registry import get_question_type_rule
 from rag_evaluator.retrieval import build_retriever
 from rag_evaluator.schemas import Chunk, EvalResult, EvalSample, GeneratedAnswer
 from rag_evaluator.scoring.failures import classify_failures
+from rag_evaluator.scoring.judges.heuristic import HeuristicJudge
 from rag_evaluator.scoring.retrieval import score_retrieval
 
 
@@ -95,6 +98,7 @@ def run_single_pipeline(
     )
     
     generator = SimpleExtractiveGenerator()
+    judge = HeuristicJudge()
     results: list[EvalResult] = []
     
     for sample in samples:
@@ -111,10 +115,31 @@ def run_single_pipeline(
             k=pipeline.retriever.top_k,
         )
         
+        generation_metrics = judge.score(
+            sample,
+            generated_answer,
+            context_chunks=context_chunks,
+            metadata = {
+                "pipeline_name": pipeline.name,
+                "judge_model": pipeline.judge.model,
+            }
+        )
+        question_type_signals = get_question_type_rule(sample.question_type).score_answer(
+            sample,
+            generated_answer,
+            context_chunks=context_chunks,
+        )
+        
         failure_modes = classify_failures(
             sample,
             retrieved_chunks,
             generated_answer=generated_answer,
+            hallucination_score=generation_metrics.hallucination,
+            partial_answer_score=(
+                1.0 - generation_metrics.faithfulness
+                if generation_metrics.faithfulness is not None
+                else None
+            ),
             retrieval_k=pipeline.retriever.top_k,
         )
         
@@ -125,11 +150,14 @@ def run_single_pipeline(
                 retrieved_chunks=retrieved_chunks,
                 generated_answer=generated_answer,
                 retrieval_metrics=retrieval_metrics,
-                generation_metrics=None,
+                generation_metrics=generation_metrics,
                 failure_modes=failure_modes,
                 metadata={
                     "pipeline_name": pipeline.name,
                     "generator_name": generator.model_name,
+                    "judge_name": judge.__class__.__name__,
+                    "judge_model": pipeline.judge.model,
+                    "question_type_signals": asdict(question_type_signals),
                 }
             ))
         
