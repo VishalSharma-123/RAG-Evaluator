@@ -51,7 +51,7 @@ class RagasNormalizer(DatasetNormalizer):
                 query_length=record.get("query_length"),
                 synthesizer_name=record.get("synthesizer_name"),
                 evolution_type=record.get("evolution_type"),
-                question_type_raw=record.get("question_type") or record.get("type"),
+                question_type_raw=record.get("question_types") or record.get("type"),
             ),
         )
 
@@ -104,7 +104,7 @@ class RagasNormalizer(DatasetNormalizer):
         raw_type = " ".join(
             str(value).lower()
             for value in (
-                record.get("question_type"),
+                record.get("question_types"),
                 record.get("evolution_type"),
                 record.get("type"),
                 record.get("synthesizer_name"),

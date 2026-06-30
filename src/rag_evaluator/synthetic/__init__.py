@@ -6,16 +6,12 @@ from rag_evaluator.synthetic.errors import (
     SyntheticProviderError,
     SyntheticValidationError,
 )
-from rag_evaluator.synthetic.models.nemotron import NemotronSyntheticGenerator
-from rag_evaluator.synthetic.service import SyntheticGenerationService
 
 __all__ = [
     "SyntheticGenerator",
-    "SyntheticGenerationService",
     "SyntheticError",
     "SyntheticGenerationError",
     "SyntheticParsingError",
     "SyntheticProviderError",
     "SyntheticValidationError",
-    "NemotronSyntheticGenerator",
 ]

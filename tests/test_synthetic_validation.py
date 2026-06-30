@@ -74,3 +74,57 @@ def test_validate_synthetic_samples_batch_returns_samples(make_sample, make_chun
     )
 
     assert validated == [sample]
+
+
+def test_validate_synthetic_sample_rejects_multihop_with_single_chunk(make_sample, make_chunk) -> None:
+    sample = make_sample(
+        question_type=QuestionType.MULTI_HOP,
+        reference_answer="Paris",
+        evidence_chunk_ids=["doc:chunk:0"],
+    )
+    chunk = make_chunk(text="Paris is the capital of France.")
+
+    with pytest.raises(SyntheticValidationError, match="at least 2 evidence_chunk_ids"):
+        validate_synthetic_sample(
+            sample,
+            available_chunk_ids={chunk.chunk_id},
+            available_chunks_by_id={chunk.chunk_id: chunk},
+            allowed_question_types={QuestionType.MULTI_HOP},
+        )
+
+
+def test_validate_synthetic_sample_rejects_comparative_without_targets(make_sample, make_chunk) -> None:
+    sample = make_sample(
+        question="Which city is larger, Paris or Berlin?",
+        question_type=QuestionType.COMPARATIVE,
+        reference_answer="Paris is larger.",
+        evidence_chunk_ids=["doc:chunk:0"],
+        metadata={},
+    )
+    chunk = make_chunk(text="Paris is larger than Berlin.")
+
+    with pytest.raises(SyntheticValidationError, match="comparison_targets"):
+        validate_synthetic_sample(
+            sample,
+            available_chunk_ids={chunk.chunk_id},
+            available_chunks_by_id={chunk.chunk_id: chunk},
+            allowed_question_types={QuestionType.COMPARATIVE},
+        )
+
+
+def test_validate_synthetic_sample_rejects_adversarial_without_pattern(make_sample, make_chunk) -> None:
+    sample = make_sample(
+        question_type=QuestionType.ADVERSARIAL,
+        reference_answer="Paris",
+        evidence_chunk_ids=["doc:chunk:0"],
+        metadata={},
+    )
+    chunk = make_chunk(text="Paris is the capital of France.")
+
+    with pytest.raises(SyntheticValidationError, match="adversarial_pattern"):
+        validate_synthetic_sample(
+            sample,
+            available_chunk_ids={chunk.chunk_id},
+            available_chunks_by_id={chunk.chunk_id: chunk},
+            allowed_question_types={QuestionType.ADVERSARIAL},
+        )

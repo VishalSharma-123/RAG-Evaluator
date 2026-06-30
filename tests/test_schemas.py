@@ -47,3 +47,10 @@ def test_eval_result_contains_failure_modes(make_sample, make_retrieved_chunk, r
     )
 
     assert result.failure_modes == [FailureMode.RETRIEVAL_MISS]
+
+
+def test_failure_mode_supports_question_type_specific_values() -> None:
+    assert FailureMode.MULTI_HOP_INCOMPLETE == "MULTI_HOP_INCOMPLETE"
+    assert FailureMode.COMPARISON_INCOMPLETE == "COMPARISON_INCOMPLETE"
+    assert FailureMode.ABSTRACTIVE_UNGROUNDED == "ABSTRACTIVE_UNGROUNDED"
+    assert FailureMode.ADVERSARIAL_MISREAD == "ADVERSARIAL_MISREAD"
