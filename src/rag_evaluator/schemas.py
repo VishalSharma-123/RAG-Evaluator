@@ -1,7 +1,14 @@
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, NonNegativeInt
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    NonNegativeFloat,
+    NonNegativeInt,
+    model_validator,
+)
 
 
 class QuestionType(StrEnum):
@@ -116,6 +123,18 @@ class GeneratedAnswer(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class FinalContext(BaseModel):
+    """
+    Final reranked context passed to the generator.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    chunks: list[Chunk] = Field(default_factory=list)
+    rendered_text: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class RetrievalMetrics(BaseModel):
     """
     Retrieval-only metrics for one sample or aggregate slice.
@@ -152,8 +171,34 @@ class EvalResult(BaseModel):
     run_id: str
     sample: EvalSample
     retrieved_chunks: list[RetrievedChunk]
+    final_context: FinalContext = Field(default_factory=FinalContext)
     generated_answer: GeneratedAnswer | None = None
     retrieval_metrics: RetrievalMetrics
     generation_metrics: GenerationMetrics | None = None
     failure_modes: list[FailureMode] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_final_context(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        if "final_context" in value or "final_context_chunks" not in value:
+            return value
+
+        final_context = {
+            "chunks": value.get("final_context_chunks") or [],
+            "rendered_text": value.get("final_context_text") or "",
+            "metadata": value.get("final_context_metadata") or {},
+        }
+        coerced = dict(value)
+        coerced["final_context"] = final_context
+        coerced.pop("final_context_chunks", None)
+        coerced.pop("final_context_text", None)
+        coerced.pop("final_context_metadata", None)
+        return coerced
+
+    @property
+    def final_context_chunks(self) -> list[Chunk]:
+        return self.final_context.chunks

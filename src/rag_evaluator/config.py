@@ -3,7 +3,14 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, PositiveInt
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    NonNegativeFloat,
+    PositiveInt,
+    model_validator,
+)
 
 from rag_evaluator.datasets.config import DatasetConfig
 
@@ -48,6 +55,7 @@ class RerankerType(StrEnum):
     NONE = "none"
     CROSS_ENCODER = "cross_encoder"
     COHERE = "cohere"
+    OPENROUTER = "openrouter"
 
 class LLMProvider(StrEnum):
     """
@@ -112,8 +120,24 @@ class RerankerConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: RerankerType = RerankerType.NONE
+    model: str | None = None
     top_k: PositiveInt | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SweepConfig(BaseModel):
+    """
+    Explicit sweep controls for pipeline variant expansion.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    overrides: list[dict[str, Any]] = Field(default_factory=list)
+    name_suffix_template: str | None = None
+    seed: int | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 class LLMConfig(BaseModel):
     """
@@ -142,6 +166,22 @@ class SyntheticGenerationConfig(BaseModel):
     max_samples: PositiveInt | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+
+class RunSettingsConfig(BaseModel):
+    """
+    Top-level run settings for an experiment execution.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    output_dir: str = "runs"
+    database_path: str | None = None
+    run_name: str | None = None
+    overwrite: bool = False
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class PipelineConfig(BaseModel):
     """
     One Complete RAG pipeline configuration.
@@ -154,6 +194,7 @@ class PipelineConfig(BaseModel):
     store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
     retriever: RetrieverConfig
     reranker: RerankerConfig = Field(default_factory=RerankerConfig)
+    sweep: SweepConfig = Field(default_factory=SweepConfig)
     generator: LLMConfig = Field(default_factory=LLMConfig)
     judge: LLMConfig = Field(default_factory=LLMConfig)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -169,4 +210,20 @@ class ExperimentConfig(BaseModel):
     pipelines: list[PipelineConfig]
     synthetic_generation: SyntheticGenerationConfig | None = None
     output_dir: str = "runs"
+    run_settings: RunSettingsConfig = Field(default_factory=RunSettingsConfig)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _sync_run_settings(self) -> ExperimentConfig:
+        if "run_settings" not in self.model_fields_set:
+            self.run_settings = self.run_settings.model_copy(
+                update={
+                    "output_dir": self.output_dir,
+                }
+            )
+        elif "output_dir" not in self.model_fields_set:
+            self.output_dir = self.run_settings.output_dir
+        else:
+            self.output_dir = self.run_settings.output_dir
+
+        return self

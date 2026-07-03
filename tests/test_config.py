@@ -141,3 +141,56 @@ def test_experiment_config_accepts_synthetic_generation_section() -> None:
     assert config.synthetic_generation is not None
     assert config.synthetic_generation.pipeline == "pipeline-1"
     assert config.synthetic_generation.question_types == ["factoid", "unanswerable"]
+
+
+def test_experiment_config_accepts_run_settings_and_pipeline_sweep() -> None:
+    config = ExperimentConfig.model_validate(
+        {
+            "experiment_name": "unit",
+            "output_dir": "legacy-runs",
+            "run_settings": {
+                "output_dir": "typed-runs",
+                "database_path": "storage/results.duckdb",
+                "run_name": "unit-run",
+                "overwrite": True,
+                "tags": ["nightly", "baseline"],
+            },
+            "datasets": [
+                {
+                    "name": "tiny",
+                    "source": "local_jsonl",
+                    "path": "data/tiny.jsonl",
+                    "split": "test",
+                }
+            ],
+            "pipelines": [
+                {
+                    "name": "pipeline-1",
+                    "chunker": {"type": "fixed", "chunk_size": 128},
+                    "embedder": {"provider": "bge", "model": "BAAI/bge-small-en-v1.5"},
+                    "retriever": {"type": "vector", "top_k": 3},
+                    "sweep": {
+                        "enabled": True,
+                        "name_suffix_template": "variant_{index}",
+                        "overrides": [
+                            {
+                                "retriever": {"top_k": 5},
+                                "metadata": {"tier": "gold"},
+                            }
+                        ],
+                    },
+                }
+            ],
+        }
+    )
+
+    pipeline = config.pipelines[0]
+    assert config.output_dir == "typed-runs"
+    assert config.run_settings.output_dir == "typed-runs"
+    assert config.run_settings.database_path == "storage/results.duckdb"
+    assert config.run_settings.run_name == "unit-run"
+    assert config.run_settings.overwrite is True
+    assert config.run_settings.tags == ["nightly", "baseline"]
+    assert pipeline.sweep.enabled is True
+    assert pipeline.sweep.name_suffix_template == "variant_{index}"
+    assert pipeline.sweep.overrides[0]["retriever"]["top_k"] == 5

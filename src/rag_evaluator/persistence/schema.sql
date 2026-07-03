@@ -5,8 +5,23 @@ CREATE TABLE IF NOT EXISTS runs (
     config_hash TEXT,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
+    run_status TEXT NOT NULL DEFAULT 'pending',
     metadata_json TEXT
 );
+
+ALTER TABLE runs
+    ADD COLUMN IF NOT EXISTS run_status TEXT;
+
+UPDATE runs
+SET run_status = CASE
+    WHEN completed_at IS NOT NULL THEN 'completed'
+    WHEN started_at IS NOT NULL THEN 'running'
+    ELSE 'pending'
+END
+WHERE run_status IS NULL;
+
+ALTER TABLE runs
+    ALTER COLUMN run_status SET DEFAULT 'pending';
 
 CREATE TABLE IF NOT EXISTS samples (
     run_id TEXT NOT NULL,
@@ -42,9 +57,21 @@ CREATE TABLE IF NOT EXISTS generated_answers (
     completion_tokens INTEGER,
     latency_ms INTEGER,
     cost_usd DOUBLE NOT NULL DEFAULT 0.0,
+    usage_json TEXT,
+    pricing_json TEXT,
     metadata_json TEXT,
+    final_context_json TEXT,
     PRIMARY KEY (run_id, sample_id)
 );
+
+ALTER TABLE generated_answers
+    ADD COLUMN IF NOT EXISTS final_context_json TEXT;
+
+ALTER TABLE generated_answers
+    ADD COLUMN IF NOT EXISTS usage_json TEXT;
+
+ALTER TABLE generated_answers
+    ADD COLUMN IF NOT EXISTS pricing_json TEXT;
 
 CREATE TABLE IF NOT EXISTS metric_scores (
     run_id TEXT NOT NULL,

@@ -28,4 +28,4 @@ storage/chroma/*
 !storage/chroma/.gitkeep
 
 PLAN.md
-.DS_Store/
+**/.DS_Store

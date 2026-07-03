@@ -4,11 +4,13 @@ from rag_evaluator.schemas import Chunk, EvalSample
 
 SYSTEM_PROMPT = """You are a RAG answer generator.
 
- Use only the provided context chunks.
- If the context is insufficient, say you do not know.
- Do not invent facts.
- Return a concise answer grounded in the retrieved evidence.
- """
+Use only the provided context chunks.
+If the context is insufficient, say you do not know.
+Do not invent facts.
+Return a valid JSON object with exactly one key:
+{"answer": "..."}
+The answer must be concise and grounded in the retrieved evidence.
+"""
 
 def build_context_block(chunks: list[Chunk]) -> str:
     """
@@ -17,7 +19,7 @@ def build_context_block(chunks: list[Chunk]) -> str:
     :return:
     """
     sections: list[str] = []
-    
+
     for index, chunk in enumerate(chunks, start=1):
         sections.append(
             "\n".join(
@@ -49,10 +51,11 @@ def build_generation_prompt(sample: EvalSample, chunks: list[Chunk]) -> str:
             f"Answerable: {sample.is_answerable}",
             "Instructions:",
             "- Answer using only the provided context.",
-            "- If the answer cannot be supported by the context, reply with `I don't know`.",
+            '- If the answer cannot be supported by the context, set "answer" to "I don\'t know".',
+            "- Return JSON only. Do not include markdown fences or extra keys.",
             "- Keep the answer concise and directly responsive to the question.",
             "Context:",
             context_block or "[No context retrieved]",
-            "Answer:",
+            "Return:",
         ]
     )

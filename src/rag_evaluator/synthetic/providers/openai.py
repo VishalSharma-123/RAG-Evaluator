@@ -149,10 +149,15 @@ class OpenAIProviderClient(LLMProviderClient):
         return str(base_url)
 
     def _api_key(self) -> str:
-        api_key = self.config.metadata.get("api_key") or os.getenv("OPENAI_API_KEY")
+        api_key = self.config.metadata.get("api_key")
+        if api_key:
+            return str(api_key)
+
+        api_key_env = str(self.config.metadata.get("api_key_env", "OPENAI_API_KEY"))
+        api_key = os.getenv(api_key_env)
         if not api_key:
             raise SyntheticProviderError(
-                "Missing OpenAI API key. Set OPENAI_API_KEY or config.metadata['api_key']."
+                f"Missing OpenAI API key. Set {api_key_env} or config.metadata['api_key']."
             )
         return str(api_key)
 
