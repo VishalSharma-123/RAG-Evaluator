@@ -54,6 +54,9 @@ def render_sample_drilldown(
     
     sample_metadata = _parse_json_field(sample_row.get("sample_metadata_json"))
     answer_metadata = _parse_json_field(sample_row.get("answer_metadata_json"))
+    usage_metadata = _parse_json_field(sample_row.get("usage_json"))
+    pricing_metadata = _parse_json_field(sample_row.get("pricing_json"))
+    final_context = _parse_json_field(sample_row.get("final_context_json"))
     result_metadata = {}
     
     if isinstance(answer_metadata, dict):
@@ -79,6 +82,18 @@ def render_sample_drilldown(
     if answer_metadata_without_result:
         st.write("Answer Metadata")
         st.json(answer_metadata_without_result)
+
+    if usage_metadata:
+        st.write("Usage")
+        st.json(usage_metadata)
+
+    if pricing_metadata:
+        st.write("Pricing")
+        st.json(pricing_metadata)
+
+    if final_context:
+        st.write("Final Context")
+        st.json(final_context)
 
     retrieved_chunks_df = load_retrieved_chunks(
         run_id,

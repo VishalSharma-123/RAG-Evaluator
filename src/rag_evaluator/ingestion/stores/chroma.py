@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from chromadb.config import Settings
+
 from rag_evaluator.ingestion.embedders import Embedding
 from rag_evaluator.ingestion.stores.base import VectorStore
 from rag_evaluator.schemas import Chunk, RetrievedChunk
@@ -130,7 +132,10 @@ class ChromaVectorStore(VectorStore):
         
         self.persist_directory.mkdir(parents=True, exist_ok=True)
         
-        client = chromadb.PersistentClient(path = str(self.persist_directory))
+        client = chromadb.PersistentClient(
+            path = str(self.persist_directory),
+            settings=Settings(anonymized_telemetry=False),
+        )
         return client.get_or_create_collection(
             name = self.collection_name,
             metadata = {

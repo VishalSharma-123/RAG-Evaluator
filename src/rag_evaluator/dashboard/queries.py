@@ -6,6 +6,7 @@ SELECT
     config_hash,
     started_at,
     completed_at,
+    run_status,
     metadata_json
 FROM runs
 ORDER BY run_id DESC
@@ -13,6 +14,7 @@ ORDER BY run_id DESC
 
 LOAD_RUN_SUMMARY = """
 SELECT
+    r.run_status,
     s.run_id,
     s.sample_id,
     s.question,
@@ -28,7 +30,10 @@ SELECT
     ga.completion_tokens,
     ga.latency_ms,
     ga.cost_usd,
+    ga.usage_json AS usage_json,
+    ga.pricing_json AS pricing_json,
     ga.metadata_json AS answer_metadata_json,
+    ga.final_context_json AS final_context_json,
     ms.precision_at_k,
     ms.recall_at_k,
     ms.mrr,
@@ -38,6 +43,8 @@ SELECT
     ms.hallucination,
     ms.bert_score
 FROM samples AS s
+LEFT JOIN runs AS r
+    ON r.run_id = s.run_id
 LEFT JOIN generated_answers AS ga
     ON ga.run_id = s.run_id
    AND ga.sample_id = s.sample_id

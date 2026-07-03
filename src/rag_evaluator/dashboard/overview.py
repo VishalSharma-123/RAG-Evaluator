@@ -21,6 +21,8 @@ def render_run_overview(runs_df: pd.DataFrame, selected_run_id: str) -> None:
     st.write(f"Experiment: {selected_row['experiment_name']}")
     st.write(f"Pipeline: {selected_row['pipeline_name']}")
     st.write(f"Config Hash: {selected_row['config_hash']}")
+    if "run_status" in selected_row and pd.notna(selected_row["run_status"]):
+        st.write(f"Status: `{selected_row['run_status']}`")
     
     metadata_json = selected_row.get("metadata_json")
     if metadata_json:

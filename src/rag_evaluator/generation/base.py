@@ -18,7 +18,7 @@ class Generator(ABC):
             context_chunks: list[Chunk],
             *,
             metadata: dict[str, Any] | None = None
-    ):
+    ) -> GeneratedAnswer:
         """
         Generate one answer for a normalized evaluations sample using retrieved context.
         :param sample:

@@ -17,12 +17,16 @@ def build_run_row(
         pipeline: PipelineConfig,
         metadata: dict[str, Any] | None = None,
 ) -> tuple[Any, ...]:
-    
+    metadata = metadata or {}
+    run_status = _resolve_run_status(metadata)
     run_metadata = {
         "experiment_metadata": experiment.metadata,
         "pipeline_metadata": pipeline.metadata,
-        **(metadata or {}),
+        "pipeline_sweep": pipeline.sweep.model_dump(mode="json"),
+        "run_status": run_status,
+        **metadata,
     }
+    run_metadata["run_status"] = run_status
     
     return (
         run_id,
@@ -31,6 +35,7 @@ def build_run_row(
         config_hash(pipeline),
         coerce_timestamp(run_metadata.get("started_at")),
         coerce_timestamp(run_metadata.get("completed_at")),
+        run_status,
         json_dumps(run_metadata),
     )
 
@@ -91,6 +96,17 @@ def build_generated_answer_row(
         return None
     
     answer = result.generated_answer
+    usage = _extract_json_payload(answer.metadata.get("usage"))
+    pricing = _extract_json_payload(answer.metadata.get("pricing"))
+    answer_metadata = {
+        **answer.metadata,
+        "result_metadata": result.metadata,
+    }
+    if usage is not None:
+        answer_metadata["usage"] = usage
+    if pricing is not None:
+        answer_metadata["pricing"] = pricing
+
     return (
         run_id,
         result.sample.sample_id,
@@ -100,12 +116,10 @@ def build_generated_answer_row(
         answer.completion_tokens,
         answer.latency_ms,
         answer.cost_usd,
-        json_dumps(
-            {
-                **answer.metadata,
-                "result_metadata": result.metadata,
-            }
-        ),
+        json_dumps(usage) if usage is not None else None,
+        json_dumps(pricing) if pricing is not None else None,
+        json_dumps(answer_metadata),
+        json_dumps(result.final_context.model_dump(mode="json")),
     )
 
 def build_metric_row(
@@ -168,3 +182,27 @@ def coerce_timestamp(value: Any) -> datetime | None:
     raise ResultsStoreError(
         f"Unsupported timestamp value for DuckDB persistence: {value!r}"
     )
+
+
+def _resolve_run_status(metadata: dict[str, Any]) -> str:
+    status = metadata.get("run_status")
+    if isinstance(status, str) and status.strip():
+        return status.strip()
+
+    if metadata.get("completed_at"):
+        return "completed"
+
+    if metadata.get("started_at"):
+        return "running"
+
+    return "pending"
+
+
+def _extract_json_payload(value: Any) -> Any | None:
+    if value is None:
+        return None
+
+    if isinstance(value, (dict, list)):
+        return value
+
+    return value
