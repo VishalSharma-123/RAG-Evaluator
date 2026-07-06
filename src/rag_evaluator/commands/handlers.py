@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from rag_evaluator.commands.chunk_commands import build_chunks, write_chunks
+from rag_evaluator.commands.dashboard_commands import launch_dashboard
 from rag_evaluator.commands.dataset_commands import (
     export_schema_command,
     list_datasets,
@@ -12,12 +13,17 @@ from rag_evaluator.commands.dataset_commands import (
     validate_dataset,
 )
 from rag_evaluator.commands.experiment_commands import run_experiment
+from rag_evaluator.commands.index_commands import build_index
 from rag_evaluator.commands.renderers import (
     render_chunk_output,
+    render_dashboard_launch_summary,
     render_experiment_summary,
+    render_index_build_summary,
+    render_score_run_summary,
     render_synthetic_summary,
 )
 from rag_evaluator.commands.schema import SCHEMA_MODELS
+from rag_evaluator.commands.scoring_commands import score_run
 from rag_evaluator.commands.synthetic_commands import generate_synthetic
 
 
@@ -103,3 +109,28 @@ def handle_run_experiment(args: argparse.Namespace) -> int:
     )
     render_experiment_summary(summary)
     return 0
+
+
+def handle_build_index(args: argparse.Namespace) -> int:
+    summary = build_index(
+        config_path=args.config,
+        pipeline_name=args.pipeline,
+    )
+    render_index_build_summary(summary)
+    return 0
+
+
+def handle_score_run(args: argparse.Namespace) -> int:
+    summary = score_run(
+        database_path=args.database_path,
+        run_id=args.run_id,
+        retrieval_k=args.retrieval_k,
+    )
+    render_score_run_summary(summary)
+    return 0
+
+
+def handle_launch_dashboard(args: argparse.Namespace) -> int:
+    summary = launch_dashboard(database_path=args.database_path)
+    render_dashboard_launch_summary(summary)
+    return summary.return_code

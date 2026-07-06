@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import streamlit as st
@@ -28,7 +29,7 @@ def main() -> None:
     
     database_path_input = st.sidebar.text_input(
         "DuckDB Path",
-        value = str(DEFAULT_DATABASE_PATH),
+        value=str(os.environ.get("RAG_EVALUATOR_DATABASE_PATH", DEFAULT_DATABASE_PATH)),
     )
     database_path = Path(database_path_input)
     
