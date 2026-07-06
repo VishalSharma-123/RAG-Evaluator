@@ -45,6 +45,17 @@ def build_sample_row(
         result: EvalResult,
 ) -> tuple[Any, ...]:
     sample = result.sample
+    sample_metadata = {
+        **sample.metadata,
+        "answer_aliases": sample.answer_aliases,
+        "choices": sample.choices,
+        "source_id": sample.source_id,
+        "evidence_chunk_ids": sample.evidence_chunk_ids,
+        "evidence_spans": [
+            evidence_span.model_dump(mode="json")
+            for evidence_span in sample.evidence_spans
+        ],
+    }
     return (
         run_id,
         sample.sample_id,
@@ -54,7 +65,7 @@ def build_sample_row(
         sample.source_split,
         sample.reference_answer,
         sample.is_answerable,
-        json_dumps(sample.metadata),
+        json_dumps(sample_metadata),
     )
 
 def build_retrieved_chunk_rows(
@@ -78,6 +89,7 @@ def build_retrieved_chunk_rows(
                     {
                         "retrieved_metadata": retrieved.metadata,
                         "chunk_metadata": retrieved.chunk.metadata,
+                        "text": retrieved.chunk.text,
                         "start_char": retrieved.chunk.start_char,
                         "end_char": retrieved.chunk.end_char,
                     }

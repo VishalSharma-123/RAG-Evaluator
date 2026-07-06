@@ -71,3 +71,54 @@ class SyntheticGenerationSummary:
     model: str
     chunk_count: int
     sample_count: int
+
+
+@dataclass(frozen=True)
+class IndexBuildPipelineSummary:
+    """
+    Structured summary for one built retrieval index.
+    """
+
+    pipeline_name: str
+    chunk_count: int
+    store_provider: str
+    collection_name: str | None
+    persist_directory: Path | None
+    retriever_type: str
+
+
+@dataclass(frozen=True)
+class IndexBuildSummary:
+    """
+    Structured summary returned by index-building orchestration.
+    """
+
+    experiment_name: str
+    config_path: Path
+    document_count: int
+    sample_count: int
+    pipeline_indexes: list[IndexBuildPipelineSummary]
+
+
+@dataclass(frozen=True)
+class ScoreRunSummary:
+    """
+    Structured summary returned by deterministic persisted-run rescoring.
+    """
+
+    run_id: str
+    database_path: Path
+    sample_count: int
+    metric_count: int
+    failure_label_count: int
+
+
+@dataclass(frozen=True)
+class DashboardLaunchSummary:
+    """
+    Structured summary for dashboard launch command.
+    """
+
+    database_path: Path
+    app_path: Path
+    return_code: int

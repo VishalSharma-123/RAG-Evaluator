@@ -114,6 +114,21 @@ INSERT INTO failure_labels (
 VALUES (?, ?, ?)
 """
 
+FETCH_RETRIEVED_CHUNKS_FOR_RUN = """
+SELECT
+    run_id,
+    sample_id,
+    chunk_id,
+    document_id,
+    rank,
+    score,
+    retriever_name,
+    metadata_json
+FROM retrieved_chunks
+WHERE run_id = ?
+ORDER BY sample_id, rank
+"""
+
 FETCH_RUN = """
 SELECT
     r.run_status,

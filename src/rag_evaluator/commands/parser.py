@@ -4,12 +4,15 @@ import argparse
 from pathlib import Path
 
 from rag_evaluator.commands.handlers import (
+    handle_build_index,
     handle_chunk_text,
     handle_export_schema,
     handle_generate_synthetic,
+    handle_launch_dashboard,
     handle_list_datasets,
     handle_normalize_dataset,
     handle_run_experiment,
+    handle_score_run,
     handle_smoke_normalize_sources,
     handle_validate_config,
     handle_validate_dataset,
@@ -36,6 +39,9 @@ def build_parser() -> argparse.ArgumentParser:
     _register_smoke_normalize_sources(subparsers)
     _register_generate_synthetic(subparsers)
     _register_run_experiment(subparsers)
+    _register_build_index(subparsers)
+    _register_score_run(subparsers)
+    _register_launch_dashboard(subparsers)
     return parser
 
 
@@ -315,3 +321,61 @@ def _register_run_experiment(subparsers: Subparsers) -> None:
         help="Override the OpenAI-compatible base URL for OpenAI providers.",
     )
     parser.set_defaults(handler=handle_run_experiment)
+
+
+def _register_build_index(subparsers: Subparsers) -> None:
+    parser = subparsers.add_parser(
+        "build-index",
+        help="Build retrieval indexes for configured pipelines without running generation.",
+    )
+    parser.add_argument(
+        "config",
+        type=Path,
+        help="Path to the experiment YAML config.",
+    )
+    parser.add_argument(
+        "--pipeline",
+        type=str,
+        default=None,
+        help="Optional single pipeline name to index.",
+    )
+    parser.set_defaults(handler=handle_build_index)
+
+
+def _register_score_run(subparsers: Subparsers) -> None:
+    parser = subparsers.add_parser(
+        "score-run",
+        help="Recompute deterministic metrics and failure labels for a persisted run.",
+    )
+    parser.add_argument(
+        "run_id",
+        type=str,
+        help="Persisted run ID to rescore.",
+    )
+    parser.add_argument(
+        "--database-path",
+        type=Path,
+        default=Path("storage/results.duckdb"),
+        help="DuckDB path containing persisted experiment results.",
+    )
+    parser.add_argument(
+        "--retrieval-k",
+        type=int,
+        default=None,
+        help="Optional retrieval k override for retrieval metrics.",
+    )
+    parser.set_defaults(handler=handle_score_run)
+
+
+def _register_launch_dashboard(subparsers: Subparsers) -> None:
+    parser = subparsers.add_parser(
+        "launch-dashboard",
+        help="Launch the Streamlit dashboard.",
+    )
+    parser.add_argument(
+        "--database-path",
+        type=Path,
+        default=None,
+        help="DuckDB path for dashboard data.",
+    )
+    parser.set_defaults(handler=handle_launch_dashboard)

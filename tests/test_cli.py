@@ -10,8 +10,11 @@ from rag_evaluator.application.types import (
 )
 from rag_evaluator.cli import main as cli_main
 from rag_evaluator.commands.handlers import (
+    handle_build_index,
     handle_generate_synthetic,
+    handle_launch_dashboard,
     handle_run_experiment,
+    handle_score_run,
 )
 from rag_evaluator.commands.main import main
 from rag_evaluator.commands.parser import build_parser
@@ -64,6 +67,61 @@ def test_build_parser_supports_run_experiment() -> None:
     assert args.database_path == Path("results.duckdb")
     assert args.openai_base_url is None
     assert args.handler is handle_run_experiment
+
+
+def test_build_parser_supports_build_index() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(
+        [
+            "build-index",
+            "experiment.yaml",
+            "--pipeline",
+            "pipeline-1",
+        ]
+    )
+
+    assert args.command == "build-index"
+    assert args.config == Path("experiment.yaml")
+    assert args.pipeline == "pipeline-1"
+    assert args.handler is handle_build_index
+
+
+def test_build_parser_supports_score_run() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(
+        [
+            "score-run",
+            "run-1",
+            "--database-path",
+            "results.duckdb",
+            "--retrieval-k",
+            "5",
+        ]
+    )
+
+    assert args.command == "score-run"
+    assert args.run_id == "run-1"
+    assert args.database_path == Path("results.duckdb")
+    assert args.retrieval_k == 5
+    assert args.handler is handle_score_run
+
+
+def test_build_parser_supports_launch_dashboard() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(
+        [
+            "launch-dashboard",
+            "--database-path",
+            "results.duckdb",
+        ]
+    )
+
+    assert args.command == "launch-dashboard"
+    assert args.database_path == Path("results.duckdb")
+    assert args.handler is handle_launch_dashboard
 
 
 def test_build_parser_leaves_run_experiment_database_path_unset_by_default() -> None:

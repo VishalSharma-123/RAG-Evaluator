@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from rag_evaluator.application.types import ExperimentRunSummary, SyntheticGenerationSummary
+from rag_evaluator.application.types import (
+    DashboardLaunchSummary,
+    ExperimentRunSummary,
+    IndexBuildSummary,
+    ScoreRunSummary,
+    SyntheticGenerationSummary,
+)
 from rag_evaluator.schemas import Chunk
 
 
@@ -26,6 +32,34 @@ def render_experiment_summary(summary: ExperimentRunSummary) -> None:
             f"{pipeline_run.result_count} results persisted to {summary.database_path} "
             f"as run `{pipeline_run.run_id}`"
         )
+
+
+def render_index_build_summary(summary: IndexBuildSummary) -> None:
+    print(
+        f"Prepared {summary.sample_count} samples and {summary.document_count} source documents "
+        f"for experiment `{summary.experiment_name}`"
+    )
+    for pipeline_index in summary.pipeline_indexes:
+        print(
+            f"Built index for pipeline `{pipeline_index.pipeline_name}`: "
+            f"{pipeline_index.chunk_count} chunks, retriever={pipeline_index.retriever_type}, "
+            f"store={pipeline_index.store_provider}"
+        )
+
+
+def render_score_run_summary(summary: ScoreRunSummary) -> None:
+    print(
+        f"Rescored run `{summary.run_id}` in {summary.database_path}: "
+        f"{summary.metric_count} metric rows and {summary.failure_label_count} failure labels "
+        f"for {summary.sample_count} samples"
+    )
+
+
+def render_dashboard_launch_summary(summary: DashboardLaunchSummary) -> None:
+    print(
+        f"Dashboard exited with code {summary.return_code} "
+        f"for database {summary.database_path}"
+    )
 
 
 def render_chunk_output(chunks: list[Chunk], chunker_type: str) -> None:
