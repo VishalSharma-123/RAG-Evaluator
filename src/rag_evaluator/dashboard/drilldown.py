@@ -22,7 +22,12 @@ def render_sample_drilldown(
         st.info("No summary data found.")
         return
     
-    sample_id = st.selectbox("Sample ID", summary_df["sample_id"].tolist())
+    sample_labels = {
+        _sample_label(row): row["sample_id"]
+        for _, row in summary_df.iterrows()
+    }
+    selected_label = st.selectbox("Sample", list(sample_labels))
+    sample_id = sample_labels[selected_label]
     sample_row = summary_df.loc[summary_df["sample_id"] == sample_id].iloc[0]
     
     st.write(f"Question: {sample_row['question']}")
@@ -31,6 +36,9 @@ def render_sample_drilldown(
     st.write(f"Answerable: `{sample_row['is_answerable']}`")
     st.write(f"Reference Answer: {sample_row.get('reference_answer') or '[None]'}")
     st.write(f"Generated Answer: {sample_row.get('answer') or '[No answer]'}")
+    failure_modes = sample_row.get("failure_modes")
+    if failure_modes is not None:
+        st.write(f"Failure Mode: {_format_failure_modes(failure_modes)}")
     
     metric_columns = [
         "precision_at_k",
@@ -133,3 +141,19 @@ def _as_dict(value: Any) -> dict[str, Any]:
     if isinstance(value, dict):
         return value
     return {}
+
+
+def _sample_label(row: pd.Series) -> str:
+    question = str(row.get("question") or "")
+    truncated_question = question[:77] + "..." if len(question) > 80 else question
+    return f"{row['sample_id']} - {truncated_question}"
+
+
+def _format_failure_modes(value: Any) -> str:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return "`[None]`"
+
+    if isinstance(value, list):
+        return ", ".join(f"`{failure}`" for failure in value) if value else "`[None]`"
+
+    return f"`{value}`"
