@@ -19,6 +19,7 @@ def generate_synthetic_from_config(
     temperature: float,
     max_tokens: int,
     reasoning_enabled: bool,
+    openai_base_url: str | None = None,
 ) -> SyntheticGenerationSummary:
     """
     Resolve synthetic generation inputs from an experiment config and execute.
@@ -53,6 +54,12 @@ def generate_synthetic_from_config(
     resolved_reasoning_enabled = bool(
         pipeline.generator.metadata.get("reasoning_enabled", reasoning_enabled)
     )
+    resolved_llm_metadata = {
+        **pipeline.generator.metadata,
+        "reasoning_enabled": resolved_reasoning_enabled,
+    }
+    if openai_base_url:
+        resolved_llm_metadata["base_url"] = openai_base_url
 
     return generate_synthetic_from_inputs(
         chunks_path=Path(synthetic_config.chunks_path),
@@ -64,6 +71,7 @@ def generate_synthetic_from_config(
         temperature=pipeline.generator.temperature,
         max_tokens=pipeline.generator.max_tokens,
         reasoning_enabled=resolved_reasoning_enabled,
+        llm_metadata=resolved_llm_metadata,
         metadata={
             **synthetic_config.metadata,
             "pipeline": pipeline.name,
@@ -82,6 +90,7 @@ def generate_synthetic_from_inputs(
     temperature: float,
     max_tokens: int,
     reasoning_enabled: bool,
+    llm_metadata: dict[str, object] | None = None,
     metadata: dict[str, object] | None = None,
 ) -> SyntheticGenerationSummary:
     """
@@ -104,6 +113,7 @@ def generate_synthetic_from_inputs(
             "max_tokens": max_tokens,
             "metadata": {
                 "reasoning_enabled": reasoning_enabled,
+                **(llm_metadata or {}),
             },
         }
     )

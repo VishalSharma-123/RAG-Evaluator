@@ -43,6 +43,7 @@ def test_build_parser_supports_generate_synthetic() -> None:
     assert args.command == "generate-synthetic"
     assert args.provider == "openrouter"
     assert args.question_types == ["factoid", "unanswerable"]
+    assert args.openai_base_url is None
     assert args.handler is handle_generate_synthetic
 
 
@@ -61,6 +62,7 @@ def test_build_parser_supports_run_experiment() -> None:
     assert args.command == "run-experiment"
     assert args.config == Path("experiment.yaml")
     assert args.database_path == Path("results.duckdb")
+    assert args.openai_base_url is None
     assert args.handler is handle_run_experiment
 
 
@@ -114,14 +116,21 @@ def test_main_dispatches_generate_synthetic(monkeypatch) -> None:
     assert captured["chunks_path"] == Path("chunks.jsonl")
     assert captured["output_path"] == Path("synthetic.jsonl")
     assert captured["question_types"] == ["factoid"]
+    assert captured["openai_base_url"] is None
 
 
 def test_main_dispatches_run_experiment(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
-    def fake_run_experiment(*, config_path: Path, database_path: Path) -> ExperimentRunSummary:
+    def fake_run_experiment(
+        *,
+        config_path: Path,
+        database_path: Path,
+        openai_base_url: str | None,
+    ) -> ExperimentRunSummary:
         captured["config_path"] = config_path
         captured["database_path"] = database_path
+        captured["openai_base_url"] = openai_base_url
         return ExperimentRunSummary(
             experiment_name="unit",
             config_path=config_path,
@@ -157,6 +166,7 @@ def test_main_dispatches_run_experiment(monkeypatch) -> None:
     assert exit_code == 0
     assert captured["config_path"] == Path("experiment.yaml")
     assert captured["database_path"] == Path("results.duckdb")
+    assert captured["openai_base_url"] is None
 
 
 def test_generate_synthetic_handler_calls_input_service(monkeypatch, capsys) -> None:
@@ -198,6 +208,7 @@ def test_generate_synthetic_handler_calls_input_service(monkeypatch, capsys) -> 
     assert exit_code == 0
     assert captured["question_types"] == ["factoid"]
     assert captured["max_samples"] == 2
+    assert captured["openai_base_url"] is None
     assert "Generated 2 synthetic samples from 1 chunks" in capsys.readouterr().out
 
 
@@ -213,9 +224,15 @@ def test_run_experiment_handler_calls_experiment_service(monkeypatch, capsys) ->
     )
     captured: dict[str, object] = {}
 
-    def fake_run_experiment(*, config_path: Path, database_path: Path) -> ExperimentRunSummary:
+    def fake_run_experiment(
+        *,
+        config_path: Path,
+        database_path: Path,
+        openai_base_url: str | None,
+    ) -> ExperimentRunSummary:
         captured["config_path"] = config_path
         captured["database_path"] = database_path
+        captured["openai_base_url"] = openai_base_url
         return ExperimentRunSummary(
             experiment_name="unit",
             config_path=config_path,
@@ -245,5 +262,6 @@ def test_run_experiment_handler_calls_experiment_service(monkeypatch, capsys) ->
     assert exit_code == 0
     assert captured["config_path"] == Path("experiment.yaml")
     assert captured["database_path"] == Path("results.duckdb")
+    assert captured["openai_base_url"] is None
     assert "Loaded 3 samples from dataset `tiny`" in output
     assert "Completed pipeline `pipeline-1`" in output

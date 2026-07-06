@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from rag_evaluator.config import LLMProvider, PipelineConfig, RetrieverType
+from rag_evaluator.config import PipelineConfig, RetrieverType
 from rag_evaluator.execution.types import PipelineRuntime
 from rag_evaluator.generation.base import Generator
 from rag_evaluator.generation.chat_completion import ChatCompletionGenerator
@@ -11,8 +11,8 @@ from rag_evaluator.ingestion.embedders import Embedder, build_embedder
 from rag_evaluator.ingestion.stores import VectorStore, build_vector_store
 from rag_evaluator.reranking.factory import build_reranker
 from rag_evaluator.retrieval import build_retriever
-from rag_evaluator.scoring.judges import HeuristicJudge, NemotronJudge, OpenAIJudge
 from rag_evaluator.scoring.judges.base import GenerationJudge
+from rag_evaluator.scoring.judges.factory import build_judge as build_scoring_judge
 
 
 def build_pipeline_runtime(
@@ -57,13 +57,7 @@ def build_generator(pipeline: PipelineConfig) -> Generator:
 
 
 def build_judge(pipeline: PipelineConfig) -> GenerationJudge:
-    if pipeline.judge.provider == LLMProvider.OPENAI:
-        return OpenAIJudge(config=pipeline.judge)
-
-    if pipeline.judge.model.startswith("nvidia/nemotron"):
-        return NemotronJudge(config=pipeline.judge)
-
-    return HeuristicJudge()
+    return build_scoring_judge(pipeline.judge)
 
 
 def _build_optional_embedder(pipeline: PipelineConfig) -> Embedder | None:

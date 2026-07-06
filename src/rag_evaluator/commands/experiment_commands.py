@@ -13,6 +13,7 @@ def run_experiment(
     *,
     config_path: Path,
     database_path: Path | None,
+    openai_base_url: str | None = None,
 ) -> ExperimentRunSummary:
     resolved_database_path = _resolve_database_path(
         config_path=config_path,
@@ -21,6 +22,7 @@ def run_experiment(
     return run_experiment_from_config(
         config_path=config_path,
         database_path=resolved_database_path,
+        openai_base_url=openai_base_url,
     )
 
 

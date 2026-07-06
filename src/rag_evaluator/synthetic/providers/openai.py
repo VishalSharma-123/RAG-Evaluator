@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 import os
 from dataclasses import dataclass
 from typing import Any
 
-import requests
+from openai import APIError, APIConnectionError, APITimeoutError, AuthenticationError, BadRequestError, OpenAI, RateLimitError
 
 from rag_evaluator.config import LLMConfig
 from rag_evaluator.synthetic.errors import SyntheticProviderError
@@ -29,41 +28,35 @@ class OpenAIProviderClient(LLMProviderClient):
         metadata: dict[str, Any] | None = None,
     ) -> ProviderGenerationResult:
         request_metadata = metadata or {}
-        payload = self._build_payload(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-        )
+        client = self._client(request_metadata)
 
         try:
-            response = requests.post(
-                self._base_url(),
-                headers=self._headers(request_metadata),
-                json=payload,
+            response = client.chat.completions.create(
+                model=self.config.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+                response_format={"type": "json_object"},
+                extra_body=self._extra_body(),
                 timeout=self._timeout_seconds(),
             )
-            response.raise_for_status()
-        except requests.HTTPError as exc:
-            body = exc.response.text if exc.response is not None else ""
-            raise SyntheticProviderError(
-                f"OpenAI request failed with HTTP error: {body}"
-            ) from exc
-        except requests.RequestException as exc:
+        except (AuthenticationError, BadRequestError, RateLimitError, APIConnectionError, APITimeoutError, APIError) as exc:
+            raise SyntheticProviderError(f"OpenAI request failed: {exc}") from exc
+        except Exception as exc:
             raise SyntheticProviderError(f"OpenAI request failed: {exc}") from exc
 
-        try:
-            response_payload = response.json()
-        except json.JSONDecodeError as exc:
-            raise SyntheticProviderError("OpenAI response was not valid JSON.") from exc
-
-        message = self._extract_message(response_payload)
+        response_payload = self._response_payload(response)
+        message = self._extract_message(response)
         content = self._extract_content(message)
         if not content.strip():
             raise SyntheticProviderError(
                 "OpenAI response did not contain a non-empty message content."
             )
 
-        usage = response_payload.get("usage")
-        usage_payload = usage if isinstance(usage, dict) else {}
+        usage_payload = self._usage_payload(response)
 
         return ProviderGenerationResult(
             content=content,
@@ -76,47 +69,43 @@ class OpenAIProviderClient(LLMProviderClient):
             },
         )
 
-    def _build_payload(
-        self,
-        *,
-        system_prompt: str,
-        user_prompt: str,
-    ) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "model": self.config.model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens,
-            "response_format": {"type": "json_object"},
-        }
+    def _client(self, metadata: dict[str, Any]) -> OpenAI:
+        return OpenAI(
+            api_key=self._api_key(),
+            organization=self._organization(metadata),
+            project=self._project(metadata),
+            base_url=self._base_url(),
+            timeout=self._timeout_seconds(),
+            max_retries=int(self.config.metadata.get("max_retries", 2)),
+            default_headers=self._default_headers(metadata),
+        )
 
-        extra_body = self.config.metadata.get("extra_body")
-        if isinstance(extra_body, dict):
-            payload.update(extra_body)
-
-        return payload
-
-    def _extract_message(self, response_payload: dict[str, Any]) -> dict[str, Any]:
-        choices = response_payload.get("choices")
-        if not isinstance(choices, list) or not choices:
+    def _extract_message(self, response: Any) -> dict[str, Any]:
+        choices = getattr(response, "choices", None)
+        if not choices:
             raise SyntheticProviderError("OpenAI response did not contain any choices.")
 
         first_choice = choices[0]
-        if not isinstance(first_choice, dict):
-            raise SyntheticProviderError(
-                "OpenAI response choice had an invalid shape."
-            )
+        message = getattr(first_choice, "message", None)
+        if message is None:
+            raise SyntheticProviderError("OpenAI response did not contain a message object.")
 
-        message = first_choice.get("message")
-        if not isinstance(message, dict):
-            raise SyntheticProviderError(
-                "OpenAI response did not contain a message object."
-            )
+        if isinstance(message, dict):
+            return message
 
-        return message
+        if hasattr(message, "model_dump"):
+            dumped = message.model_dump()
+            if isinstance(dumped, dict):
+                return dumped
+
+        content = getattr(message, "content", None)
+        reasoning_details = getattr(message, "reasoning_details", None)
+        response_message: dict[str, Any] = {}
+        if content is not None:
+            response_message["content"] = content
+        if reasoning_details is not None:
+            response_message["reasoning_details"] = reasoning_details
+        return response_message
 
     def _extract_content(self, message: dict[str, Any]) -> str:
         content = message.get("content")
@@ -140,11 +129,36 @@ class OpenAIProviderClient(LLMProviderClient):
             "OpenAI response content had an unsupported shape."
         )
 
+    def _response_payload(self, response: Any) -> dict[str, Any]:
+        if hasattr(response, "model_dump"):
+            payload = response.model_dump()
+            if isinstance(payload, dict):
+                return payload
+        if isinstance(response, dict):
+            return response
+        return {}
+
+    def _extra_body(self) -> dict[str, Any] | None:
+        extra_body = self.config.metadata.get("extra_body")
+        if isinstance(extra_body, dict):
+            return extra_body
+        return None
+
+    def _usage_payload(self, response: Any) -> dict[str, Any]:
+        usage = getattr(response, "usage", None)
+        if hasattr(usage, "model_dump"):
+            payload = usage.model_dump()
+            if isinstance(payload, dict):
+                return payload
+        if isinstance(usage, dict):
+            return usage
+        return {}
+
     def _base_url(self) -> str:
         base_url = (
             self.config.metadata.get("base_url")
             or os.getenv("OPENAI_BASE_URL")
-            or "https://api.openai.com/v1/chat/completions"
+            or "https://api.openai.com/v1"
         )
         return str(base_url)
 
@@ -170,12 +184,8 @@ class OpenAIProviderClient(LLMProviderClient):
                 f"Invalid timeout_seconds value: {raw_timeout!r}."
             ) from exc
 
-    def _headers(self, metadata: dict[str, Any]) -> dict[str, str]:
-        headers = {
-            "Authorization": f"Bearer {self._api_key()}",
-            "Content-Type": "application/json",
-        }
-
+    def _default_headers(self, metadata: dict[str, Any]) -> dict[str, str]:
+        headers: dict[str, str] = {}
         organization = (
             metadata.get("openai_organization")
             or self.config.metadata.get("openai_organization")
@@ -193,3 +203,19 @@ class OpenAIProviderClient(LLMProviderClient):
             headers["OpenAI-Project"] = str(project)
 
         return headers
+
+    def _organization(self, metadata: dict[str, Any]) -> str | None:
+        organization = (
+            metadata.get("openai_organization")
+            or self.config.metadata.get("openai_organization")
+            or os.getenv("OPENAI_ORGANIZATION")
+        )
+        return str(organization) if organization else None
+
+    def _project(self, metadata: dict[str, Any]) -> str | None:
+        project = (
+            metadata.get("openai_project")
+            or self.config.metadata.get("openai_project")
+            or os.getenv("OPENAI_PROJECT")
+        )
+        return str(project) if project else None

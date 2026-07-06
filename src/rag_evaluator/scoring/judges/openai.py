@@ -18,6 +18,7 @@ class OpenAIJudge(LLMJudge):
     def __post_init__(self) -> None:
         if self.config.provider != LLMProvider.OPENAI:
             raise ValueError("OpenAIJudge requires config.provider to be `openai`.")
+        super().__post_init__()
 
     def provider_name(self) -> str:
         return LLMProvider.OPENAI.value
