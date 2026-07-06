@@ -29,3 +29,6 @@ storage/chroma/*
 
 PLAN.md
 **/.DS_Store
+
+scripts/
+configs/readiness_256_openai.yaml
