@@ -394,11 +394,12 @@ def test_generate_synthetic_from_config_resolves_experiment_settings(
                 "      type: vector",
                 "      top_k: 3",
                 "    generator:",
-                "      provider: openrouter",
-                "      model: nvidia/nemotron-3-super-120b-a12b:free",
+                "      provider: openai",
+                "      model: gpt-4o-mini",
                 "      temperature: 0.0",
                 "      max_tokens: 600",
                 "      metadata:",
+                "        base_url: https://config.example/v1",
                 "        reasoning_enabled: true",
                 "synthetic_generation:",
                 "  pipeline: pipeline-1",
@@ -445,18 +446,109 @@ def test_generate_synthetic_from_config_resolves_experiment_settings(
         temperature=0.0,
         max_tokens=512,
         reasoning_enabled=False,
+        openai_base_url="https://override.example/v1",
     )
 
     assert summary.output_path == output_path
     assert captured["chunks_path"] == chunks_path
-    assert captured["provider"] == "openrouter"
-    assert captured["model"] == "nvidia/nemotron-3-super-120b-a12b:free"
+    assert captured["provider"] == "openai"
+    assert captured["model"] == "gpt-4o-mini"
     assert captured["question_types"] == ["factoid"]
     assert captured["max_samples"] == 3
     assert captured["temperature"] == 0.0
     assert captured["max_tokens"] == 600
     assert captured["reasoning_enabled"] is True
+    assert captured["llm_metadata"] == {
+        "base_url": "https://override.example/v1",
+        "reasoning_enabled": True,
+    }
     assert captured["metadata"] == {
         "source": "yaml",
         "pipeline": "pipeline-1",
     }
+
+
+def test_run_experiment_from_config_applies_openai_base_url_override(
+    tmp_path: Path,
+    make_sample,
+    monkeypatch,
+) -> None:
+    config_path = tmp_path / "experiment.yaml"
+    database_path = tmp_path / "results.duckdb"
+    config_path.write_text("experiment_name: unit\ndatasets: []\npipelines: []\n", encoding="utf-8")
+
+    experiment = ExperimentConfig.model_validate(
+        {
+            "experiment_name": "unit",
+            "datasets": [],
+            "pipelines": [
+                {
+                    "name": "pipeline-1",
+                    "chunker": {"type": "fixed", "chunk_size": 128},
+                    "embedder": {
+                        "provider": "openai",
+                        "model": "text-embedding-3-small",
+                    },
+                    "retriever": {"type": "bm25", "top_k": 1},
+                    "generator": {
+                        "provider": "openai",
+                        "model": "gpt-4o-mini",
+                    },
+                    "judge": {
+                        "provider": "openai",
+                        "model": "gpt-4o-mini",
+                    },
+                }
+            ],
+        }
+    )
+    sample = make_sample()
+
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        "rag_evaluator.application.experiment_service.load_experiment_config",
+        lambda path: experiment,
+    )
+
+    def fake_load_experiment_inputs(loaded_experiment):
+        captured["experiment"] = loaded_experiment
+        return type(
+            "Inputs",
+            (),
+            {
+                "experiment": loaded_experiment,
+                "samples": [sample],
+                "documents": [type("Doc", (), {"document_id": "doc"})()],
+                "datasets": [],
+            },
+        )()
+
+    monkeypatch.setattr(
+        "rag_evaluator.application.experiment_service.load_experiment_inputs",
+        fake_load_experiment_inputs,
+    )
+    monkeypatch.setattr(
+        "rag_evaluator.application.experiment_service.execute_experiment",
+        lambda **kwargs: ExperimentRunOutput(experiment_name="unit", pipeline_runs=[]),
+    )
+    monkeypatch.setattr(
+        "rag_evaluator.application.experiment_service.DuckDBResultsStore",
+        lambda database_path: type(
+            "Store",
+            (),
+            {"write_run": lambda self, **kwargs: None},
+        )(),
+    )
+
+    run_experiment_from_config(
+        config_path=config_path,
+        database_path=database_path,
+        openai_base_url="https://proxy.example/v1",
+    )
+
+    loaded_experiment = captured["experiment"]
+    pipeline = loaded_experiment.pipelines[0]
+    assert pipeline.embedder.metadata["base_url"] == "https://proxy.example/v1"
+    assert pipeline.generator.metadata["base_url"] == "https://proxy.example/v1"
+    assert pipeline.judge.metadata["base_url"] == "https://proxy.example/v1"

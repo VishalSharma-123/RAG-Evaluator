@@ -280,6 +280,12 @@ def _register_generate_synthetic(subparsers: Subparsers) -> None:
         action="store_true",
         help="Enable provider-side reasoning when supported.",
     )
+    parser.add_argument(
+        "--openai-base-url",
+        type=str,
+        default=None,
+        help="Override the OpenAI-compatible base URL for OpenAI providers.",
+    )
     parser.set_defaults(
         handler=handle_generate_synthetic,
         command_parser=parser,
@@ -301,5 +307,11 @@ def _register_run_experiment(subparsers: Subparsers) -> None:
         type=Path,
         default=None,
         help="DuckDB path used to persist experiment results.",
+    )
+    parser.add_argument(
+        "--openai-base-url",
+        type=str,
+        default=None,
+        help="Override the OpenAI-compatible base URL for OpenAI providers.",
     )
     parser.set_defaults(handler=handle_run_experiment)

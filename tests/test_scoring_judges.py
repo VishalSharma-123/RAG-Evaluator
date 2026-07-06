@@ -4,7 +4,7 @@ import pytest
 
 from rag_evaluator.config import LLMConfig
 from rag_evaluator.schemas import GeneratedAnswer, QuestionType
-from rag_evaluator.scoring.judges import HeuristicJudge, NemotronJudge, OpenAIJudge
+from rag_evaluator.scoring.judges import HeuristicJudge, OpenAIJudge, OpenRouterJudge
 
 
 def test_heuristic_judge_scores_answerable_sample(make_sample, make_chunk) -> None:
@@ -42,12 +42,12 @@ def test_openai_judge_rejects_non_openai_provider() -> None:
         )
 
 
-def test_nemotron_judge_rejects_non_nemotron_model() -> None:
-    with pytest.raises(ValueError, match="nemotron"):
-        NemotronJudge(
+def test_openrouter_judge_rejects_non_openrouter_provider() -> None:
+    with pytest.raises(ValueError, match="openrouter"):
+        OpenRouterJudge(
             config=LLMConfig.model_validate(
                 {
-                    "provider": "openrouter",
+                    "provider": "openai",
                     "model": "gpt-5-mini",
                 }
             )

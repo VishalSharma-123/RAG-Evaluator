@@ -20,11 +20,11 @@ def score_retrieval(
     :return:
     """
     if k < 1:
-        raise ValueError('k must be greater than 1')
-    
+        raise ValueError("k must be >= 1")
+
     gold_chunk_ids = set(sample.evidence_chunk_ids)
     top_k = list(retrieved_chunks[:k])
-    
+
     if not gold_chunk_ids:
         return RetrievalMetrics(
             precision_at_k=0.0,
@@ -32,16 +32,16 @@ def score_retrieval(
             mrr=0.0,
             ndcg=0.0,
         )
-    
+
     retrieved_ids = [retrieved.chunk.chunk_id for retrieved in top_k]
     relevant_flags = [chunk_id in gold_chunk_ids for chunk_id in retrieved_ids]
     hits = sum(relevant_flags)
-    
+
     return RetrievalMetrics(
         precision_at_k=hits/k,
         recall_at_k=hits/len(gold_chunk_ids),
         mrr=_mrr(relevant_flags),
-        ndcg=_ndcg(relevant_flags, total_relevant = len(gold_chunk_ids)),
+        ndcg=_ndcg(relevant_flags, total_relevant=len(gold_chunk_ids)),
     )
 
 def score_retrieval_batch(
@@ -62,7 +62,7 @@ def score_retrieval_batch(
         sample.sample_id: score_retrieval(
             sample,
             retrieved_by_sample_id.get(sample.sample_id, []),
-            k=k
+            k=k,
         )
         for sample in samples
     }
@@ -70,8 +70,8 @@ def score_retrieval_batch(
 def _mrr(relevant_flags: Sequence[bool]) -> float:
     for index, is_relevant in enumerate(relevant_flags, start=1):
         if is_relevant:
-            return 1.0/index
-    
+            return 1.0 / index
+
     return 0.0
 
 def _ndcg(relevant_flags: Sequence[bool], *, total_relevant: int) -> float:
@@ -79,13 +79,12 @@ def _ndcg(relevant_flags: Sequence[bool], *, total_relevant: int) -> float:
     
     for index, is_relevant in enumerate(relevant_flags, start=1):
         if is_relevant:
-            dcg += 1.0/math.log2(index + 1)
-    
+            dcg += 1.0 / math.log2(index + 1)
+
     ideal_relevant = min(total_relevant, len(relevant_flags))
-    ideal_dcg = sum(1.0 / math.log2(index + 1) for index in range(1, ideal_relevant+1))
-    
+    ideal_dcg = sum(1.0 / math.log2(index + 1) for index in range(1, ideal_relevant + 1))
+
     if ideal_dcg == 0.0:
         return 0.0
-    
+
     return dcg / ideal_dcg
-            

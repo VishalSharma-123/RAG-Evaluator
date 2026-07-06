@@ -30,10 +30,10 @@ def classify_failures(
     
     failures: list[FailureMode] = []
     gold_chunk_ids = set(sample.evidence_chunk_ids)
-    
+
     retrieved_ids = [retrieved.chunk.chunk_id for retrieved in retrieved_chunks]
     retrieved_id_set = set(retrieved_ids)
-    
+
     if sample.is_answerable and gold_chunk_ids:
         if retrieved_id_set.isdisjoint(gold_chunk_ids):
             failures.append(FailureMode.RETRIEVAL_MISS)
@@ -41,7 +41,7 @@ def classify_failures(
             top_k_ids = set(retrieved_ids[:retrieval_k])
             if top_k_ids.isdisjoint(gold_chunk_ids):
                 failures.append(FailureMode.RETRIEVAL_RANK)
-    
+
     if generated_answer is not None:
         if not sample.is_answerable and not _looks_like_abstention(generated_answer.answer):
             failures.append(FailureMode.UNANSWERABLE_FAIL)
@@ -65,16 +65,18 @@ def classify_failures(
 
     return _deduplicate_failures(failures)
 
+
 def _deduplicate_failures(failures: Sequence[FailureMode]) -> list[FailureMode]:
     seen: set[FailureMode] = set()
     deduped: list[FailureMode] = []
-    
+
     for failure in failures:
         if failure not in seen:
             seen.add(failure)
             deduped.append(failure)
-    
+
     return deduped
+
 
 def _looks_like_abstention(answer: str) -> bool:
     normalized = answer.lower().strip()
@@ -88,6 +90,7 @@ def _looks_like_abstention(answer: str) -> bool:
         "can't be determined",
     }
     return normalized in abstentions
+
 
 def _classify_question_type_failures(
     sample: EvalSample,

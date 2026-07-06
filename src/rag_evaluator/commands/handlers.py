@@ -89,6 +89,7 @@ def handle_generate_synthetic(args: argparse.Namespace) -> int:
         temperature=args.temperature,
         max_tokens=args.max_tokens,
         reasoning_enabled=args.reasoning_enabled,
+        openai_base_url=args.openai_base_url,
     )
     render_synthetic_summary(summary)
     return 0
@@ -98,6 +99,7 @@ def handle_run_experiment(args: argparse.Namespace) -> int:
     summary = run_experiment(
         config_path=args.config,
         database_path=args.database_path,
+        openai_base_url=args.openai_base_url,
     )
     render_experiment_summary(summary)
     return 0

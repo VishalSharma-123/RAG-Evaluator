@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
+from rag_evaluator.application.llm_overrides import apply_openai_base_url
 from rag_evaluator.application.experiment_inputs import load_experiment_inputs
 from rag_evaluator.application.types import (
     ExperimentRunSummary,
@@ -16,12 +17,16 @@ from rag_evaluator.persistence import DuckDBResultsStore
 def run_experiment_from_config(
     config_path: Path,
     database_path: Path,
+    openai_base_url: str | None = None,
 ) -> ExperimentRunSummary:
     """
     Load, execute, and persist one configured experiment.
     """
 
-    experiment = load_experiment_config(config_path)
+    experiment = apply_openai_base_url(
+        load_experiment_config(config_path),
+        openai_base_url,
+    )
     inputs = load_experiment_inputs(experiment)
 
     started_at = datetime.now(UTC)
