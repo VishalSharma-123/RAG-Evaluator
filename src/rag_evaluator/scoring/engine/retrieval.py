@@ -5,8 +5,6 @@ from dataclasses import dataclass
 
 from rag_evaluator.schemas import EvalSample, RetrievalMetrics, RetrievedChunk
 from rag_evaluator.scoring.engine.base import RetrievalScorer
-from rag_evaluator.scoring.retrieval import score_retrieval as _score_retrieval
-from rag_evaluator.scoring.retrieval import score_retrieval_batch as _score_retrieval_batch
 
 
 def _normalize_k(retrieved_chunks: Sequence[RetrievedChunk], k: int | None) -> int:
@@ -30,6 +28,8 @@ def score_retrieval_metrics(
     :return:
     """
     normalized_k = _normalize_k(retrieved_chunks, k)
+    from rag_evaluator.scoring.retrieval import score_retrieval as _score_retrieval
+
     return _score_retrieval(sample, retrieved_chunks, k=normalized_k)
 
 def score_retrieval_metrics_batch(
@@ -52,6 +52,10 @@ def score_retrieval_metrics_batch(
     if batch_k is None:
         batch_k = max(1, max((len(retrieved_chunks) for retrieved_chunks in retrieved_by_sample_id.values()), default=0))
     
+    from rag_evaluator.scoring.retrieval import (
+        score_retrieval_batch as _score_retrieval_batch,
+    )
+
     return _score_retrieval_batch(
         samples,
         retrieved_by_sample_id,

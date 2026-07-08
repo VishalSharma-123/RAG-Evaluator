@@ -4,6 +4,7 @@ import math
 from collections.abc import Sequence
 
 from rag_evaluator.schemas import EvalSample, RetrievalMetrics, RetrievedChunk
+from rag_evaluator.scoring.engine.chunk_relevance import resolve_retrieval_gold
 
 
 def score_retrieval(
@@ -22,26 +23,26 @@ def score_retrieval(
     if k < 1:
         raise ValueError("k must be >= 1")
 
-    gold_chunk_ids = set(sample.evidence_chunk_ids)
     top_k = list(retrieved_chunks[:k])
+    resolution = resolve_retrieval_gold(sample, list(retrieved_chunks))
 
-    if not gold_chunk_ids:
+    if resolution.strategy == "unavailable":
         return RetrievalMetrics(
-            precision_at_k=0.0,
-            recall_at_k=0.0,
-            mrr=0.0,
-            ndcg=0.0,
+            precision_at_k=None,
+            recall_at_k=None,
+            mrr=None,
+            ndcg=None,
         )
 
-    retrieved_ids = [retrieved.chunk.chunk_id for retrieved in top_k]
-    relevant_flags = [chunk_id in gold_chunk_ids for chunk_id in retrieved_ids]
+    relevant_flags = resolution.relevant_flags[: len(top_k)]
     hits = sum(relevant_flags)
+    total_relevant = _total_relevant(resolution.resolved_gold_chunk_ids, relevant_flags)
 
     return RetrievalMetrics(
         precision_at_k=hits/k,
-        recall_at_k=hits/len(gold_chunk_ids),
+        recall_at_k=hits/total_relevant,
         mrr=_mrr(relevant_flags),
-        ndcg=_ndcg(relevant_flags, total_relevant=len(gold_chunk_ids)),
+        ndcg=_ndcg(relevant_flags, total_relevant=total_relevant),
     )
 
 def score_retrieval_batch(
@@ -73,6 +74,11 @@ def _mrr(relevant_flags: Sequence[bool]) -> float:
             return 1.0 / index
 
     return 0.0
+
+def _total_relevant(resolved_gold_chunk_ids: Sequence[str], relevant_flags: Sequence[bool]) -> int:
+    if resolved_gold_chunk_ids:
+        return len(set(resolved_gold_chunk_ids))
+    return max(1, sum(relevant_flags))
 
 def _ndcg(relevant_flags: Sequence[bool], *, total_relevant: int) -> float:
     dcg = 0.0

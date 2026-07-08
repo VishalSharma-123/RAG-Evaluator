@@ -13,6 +13,7 @@ from rag_evaluator.execution.types import (
 from rag_evaluator.question_types.registry import get_question_type_rule
 from rag_evaluator.schemas import Chunk, EvalResult, EvalSample, GeneratedAnswer
 from rag_evaluator.scoring.failures import classify_failures
+from rag_evaluator.scoring.engine.chunk_relevance import resolve_retrieval_gold
 from rag_evaluator.scoring.retrieval import score_retrieval
 
 
@@ -64,6 +65,7 @@ def run_sample(
         artifacts.retrieved_chunks,
         k=runtime.pipeline.retriever.top_k,
     )
+    retrieval_gold = resolve_retrieval_gold(sample, artifacts.retrieved_chunks)
     generation_metrics = runtime.judge.score(
         sample,
         generated_answer,
@@ -117,6 +119,9 @@ def run_sample(
             "retrieved_chunk_ids": [
                 item.chunk.chunk_id for item in artifacts.retrieved_chunks
             ],
+            "retrieval_gold_strategy": retrieval_gold.strategy,
+            "resolved_gold_chunk_ids": retrieval_gold.resolved_gold_chunk_ids,
+            "retrieved_relevance_flags": retrieval_gold.relevant_flags,
             "final_context_chunk_ids": [
                 chunk.chunk_id for chunk in artifacts.final_context.chunks
             ],

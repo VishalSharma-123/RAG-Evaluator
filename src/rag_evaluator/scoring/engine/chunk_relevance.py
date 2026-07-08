@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from rag_evaluator.question_types.signals import build_context_text, token_overlap_ratio
+from rag_evaluator.question_types.signals import (
+    build_context_text,
+    normalize_text,
+    token_overlap_ratio,
+)
 from rag_evaluator.schemas import Chunk, EvalSample, RetrievedChunk
 from rag_evaluator.scoring.engine.base import ChunkRelevanceFn, ChunkRelevanceScorer
 from rag_evaluator.scoring.engine.types import ChunkRelevanceScore, ChunkRelevanceStrategy
@@ -96,6 +100,73 @@ class DefaultChunkRelevanceScorer(ChunkRelevanceScorer):
         ]
 
 
+@dataclass(frozen=True)
+class RetrievalGoldResolution:
+    relevant_flags: list[bool]
+    resolved_gold_chunk_ids: list[str]
+    strategy: str
+
+
+def resolve_retrieval_gold(
+    sample: EvalSample,
+    retrieved_chunks: list[RetrievedChunk],
+) -> RetrievalGoldResolution:
+    """
+    Resolve retriever-visible relevance from strongest to weakest gold signal.
+    """
+    if sample.evidence_chunk_ids:
+        gold_ids = _dedupe_preserving_order(sample.evidence_chunk_ids)
+        gold_id_set = set(gold_ids)
+        return RetrievalGoldResolution(
+            relevant_flags=[
+                retrieved.chunk.chunk_id in gold_id_set for retrieved in retrieved_chunks
+            ],
+            resolved_gold_chunk_ids=gold_ids,
+            strategy=ChunkRelevanceStrategy.EXACT_EVIDENCE_ID.value,
+        )
+
+    if _has_usable_evidence_spans(sample):
+        flags = [
+            _chunk_overlaps_evidence_spans(sample, retrieved.chunk)
+            for retrieved in retrieved_chunks
+        ]
+        resolved_ids = _resolved_span_chunk_ids(sample, retrieved_chunks, flags)
+        return RetrievalGoldResolution(
+            relevant_flags=flags,
+            resolved_gold_chunk_ids=resolved_ids,
+            strategy=ChunkRelevanceStrategy.EVIDENCE_SPAN_OVERLAP.value,
+        )
+
+    evidence_text = _explicit_evidence_text(sample)
+    if evidence_text:
+        flags = [
+            _text_matches_gold(evidence_text, retrieved.chunk.text)
+            for retrieved in retrieved_chunks
+        ]
+        return RetrievalGoldResolution(
+            relevant_flags=flags,
+            resolved_gold_chunk_ids=_matched_retrieved_chunk_ids(retrieved_chunks, flags),
+            strategy="evidence_text_overlap",
+        )
+
+    if sample.is_answerable and sample.reference_answer:
+        flags = [
+            _text_matches_gold(sample.reference_answer, retrieved.chunk.text)
+            for retrieved in retrieved_chunks
+        ]
+        return RetrievalGoldResolution(
+            relevant_flags=flags,
+            resolved_gold_chunk_ids=_matched_retrieved_chunk_ids(retrieved_chunks, flags),
+            strategy="answer_text_fallback",
+        )
+
+    return RetrievalGoldResolution(
+        relevant_flags=[False for _ in retrieved_chunks],
+        resolved_gold_chunk_ids=[],
+        strategy="unavailable",
+    )
+
+
 def score_chunk_relevance(
     sample: EvalSample,
     retrieved_chunk: RetrievedChunk,
@@ -156,6 +227,73 @@ def _chunk_overlaps_evidence_spans(sample: EvalSample, chunk: Chunk) -> bool:
         return True
 
     return False
+
+
+def _has_usable_evidence_spans(sample: EvalSample) -> bool:
+    for span in sample.evidence_spans:
+        if span.chunk_id is not None:
+            return True
+        if span.end_char > span.start_char:
+            return True
+    return False
+
+
+def _explicit_evidence_text(sample: EvalSample) -> str:
+    return " ".join(
+        span.text.strip()
+        for span in sample.evidence_spans
+        if span.text is not None and span.text.strip()
+    )
+
+
+def _text_matches_gold(gold_text: str, candidate_text: str) -> bool:
+    normalized_gold = normalize_text(gold_text)
+    normalized_candidate = normalize_text(candidate_text)
+
+    if not normalized_gold or not normalized_candidate:
+        return False
+
+    if normalized_gold in normalized_candidate:
+        return True
+
+    return token_overlap_ratio(gold_text, candidate_text) >= 0.6
+
+
+def _matched_retrieved_chunk_ids(
+    retrieved_chunks: list[RetrievedChunk],
+    flags: list[bool],
+) -> list[str]:
+    return [
+        retrieved.chunk.chunk_id
+        for retrieved, is_relevant in zip(retrieved_chunks, flags)
+        if is_relevant
+    ]
+
+
+def _resolved_span_chunk_ids(
+    sample: EvalSample,
+    retrieved_chunks: list[RetrievedChunk],
+    flags: list[bool],
+) -> list[str]:
+    span_chunk_ids = [
+        span.chunk_id
+        for span in sample.evidence_spans
+        if span.chunk_id is not None
+    ]
+    if span_chunk_ids:
+        return _dedupe_preserving_order(span_chunk_ids)
+    return _matched_retrieved_chunk_ids(retrieved_chunks, flags)
+
+
+def _dedupe_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+    return deduped
 
 
 def _semantic_similarity(

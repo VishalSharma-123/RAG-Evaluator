@@ -5,6 +5,8 @@ import importlib.util
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 
 def test_readiness_dry_run_reports_missing_local_only_dataset(tmp_path: Path) -> None:
     module = _load_script_module()
@@ -161,6 +163,18 @@ pipeline:
     assert pipeline["judge"]["max_tokens"] == 111
     assert pipeline["judge"]["metadata"]["api_key_env"] == "CUSTOM_JUDGE_KEY"
     assert pipeline["judge"]["metadata"]["base_url"] == "https://judge.example.test/v1"
+
+
+def test_verify_database_available_reports_duckdb_lock(monkeypatch, tmp_path: Path) -> None:
+    module = _load_script_module()
+
+    def fail_connect(_path: str):
+        raise module.duckdb.IOException("could not set lock")
+
+    monkeypatch.setattr(module.duckdb, "connect", fail_connect)
+
+    with pytest.raises(RuntimeError, match="Close any DuckDB CLI"):
+        module.verify_database_available(tmp_path / "locked.duckdb")
 
 
 def _load_script_module() -> ModuleType:

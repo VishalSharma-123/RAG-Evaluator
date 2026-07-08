@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from rag_evaluator.schemas import EvalSample, FailureMode, GeneratedAnswer, RetrievedChunk
 from rag_evaluator.scoring.engine.base import FailureClassifier
-from rag_evaluator.scoring.failures import classify_failures as _classify_failures
+from rag_evaluator.scoring.engine.chunk_relevance import resolve_retrieval_gold
 
 
 @dataclass(frozen=True)
@@ -95,20 +95,19 @@ def classify_retrieval_failures(
     :param retrieval_k:
     :return:
     """
-    if not sample.is_answerable or not sample.evidence_chunk_ids:
+    if not sample.is_answerable:
         return []
-    
-    retrieved_ids = [retrieved.chunk.chunk_id for retrieved in retrieved_chunks]
-    retrieved_id_set = set(retrieved_ids)
-    gold_id_set = set(sample.evidence_chunk_ids)
+
+    resolution = resolve_retrieval_gold(sample, list(retrieved_chunks))
+    if resolution.strategy == "unavailable":
+        return []
     
     failures: list[FailureMode] = []
     
-    if retrieved_id_set.isdisjoint(gold_id_set):
+    if not any(resolution.relevant_flags):
         failures.append(FailureMode.RETRIEVAL_MISS)
     elif retrieval_k is not None:
-        top_k_ids = set(retrieved_ids[:retrieval_k])
-        if top_k_ids.isdisjoint(gold_id_set):
+        if not any(resolution.relevant_flags[:retrieval_k]):
             failures.append(FailureMode.RETRIEVAL_RANK)
     
     return failures
@@ -134,6 +133,8 @@ def classify_generation_failures(
     :param retrieval_k:
     :return:
     """
+    from rag_evaluator.scoring.failures import classify_failures as _classify_failures
+
     all_failures = _classify_failures(
         sample=sample,
         retrieved_chunks=retrieved_chunks,
