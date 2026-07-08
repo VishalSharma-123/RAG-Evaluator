@@ -83,6 +83,14 @@ def render_sample_drilldown(
         st.write("Question Type Signals")
         st.json(question_type_signals)
 
+    retrieval_gold = {
+        "strategy": result_metadata.get("retrieval_gold_strategy"),
+        "resolved_gold_chunk_ids": result_metadata.get("resolved_gold_chunk_ids"),
+    }
+    if retrieval_gold["strategy"] is not None or retrieval_gold["resolved_gold_chunk_ids"]:
+        st.write("Retrieval Gold")
+        st.json(retrieval_gold)
+
     answer_metadata_without_result = (
         dict(answer_metadata) if isinstance(answer_metadata, dict) else {}
     )

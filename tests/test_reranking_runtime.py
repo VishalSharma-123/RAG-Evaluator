@@ -118,3 +118,6 @@ def test_run_sample_uses_retriever_top_k_when_reranker_top_k_is_missing(
 
     assert len(result.retrieved_chunks) == 2
     assert result.final_context.chunks == [chunk, retrieved[1].chunk]
+    assert result.metadata["retrieval_gold_strategy"] == "exact_evidence_id"
+    assert result.metadata["resolved_gold_chunk_ids"] == ["doc:chunk:0"]
+    assert result.metadata["retrieved_relevance_flags"] == [False, False]

@@ -54,6 +54,7 @@ def build_generation_prompt(sample: EvalSample, chunks: list[Chunk]) -> str:
             '- If the answer cannot be supported by the context, set "answer" to "I don\'t know".',
             "- Return JSON only. Do not include markdown fences or extra keys.",
             "- Keep the answer concise and directly responsive to the question.",
+            "- For Qwen3 models, use /no_think and do not emit reasoning.",
             "Context:",
             context_block or "[No context retrieved]",
             "Return:",

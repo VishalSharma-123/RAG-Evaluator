@@ -23,8 +23,14 @@ class ConalaNormalizer(DatasetNormalizer):
         question = record.get("intent") or record.get("rewritten_intent")
         answer = record.get("snippet")
 
+        sample_id = (
+            self.sample_id(split, index)
+            if source_id is None
+            else f"{self.config.name}:{split}:{source_id}:{index}"
+        )
+
         return EvalSample(
-            sample_id=self.sample_id(split, index, source_id),
+            sample_id=sample_id,
             question=str(question),
             reference_answer=str(answer) if answer is not None else None,
             question_type=QuestionType.FACTOID,

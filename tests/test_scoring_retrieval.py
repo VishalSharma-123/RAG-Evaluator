@@ -12,12 +12,12 @@ def test_score_retrieval_rejects_invalid_k(make_sample, make_retrieved_chunk) ->
         score_retrieval(sample, [make_retrieved_chunk()], k=0)
 
 
-def test_score_retrieval_returns_zeros_when_no_gold_chunks(make_sample, make_retrieved_chunk) -> None:
-    sample = make_sample(evidence_chunk_ids=[])
+def test_score_retrieval_returns_nulls_when_no_gold_chunks(make_sample, make_retrieved_chunk) -> None:
+    sample = make_sample(evidence_chunk_ids=[], reference_answer=None)
 
     metrics = score_retrieval(sample, [make_retrieved_chunk()], k=1)
 
-    assert metrics.precision_at_k == 0.0
-    assert metrics.recall_at_k == 0.0
-    assert metrics.mrr == 0.0
-    assert metrics.ndcg == 0.0
+    assert metrics.precision_at_k is None
+    assert metrics.recall_at_k is None
+    assert metrics.mrr is None
+    assert metrics.ndcg is None

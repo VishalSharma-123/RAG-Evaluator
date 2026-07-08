@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from rag_evaluator.question_types.registry import get_question_type_rule
 from rag_evaluator.schemas import Chunk, EvalSample, FailureMode, GeneratedAnswer, RetrievedChunk
+from rag_evaluator.scoring.engine.chunk_relevance import resolve_retrieval_gold
 
 
 def classify_failures(
@@ -29,17 +30,13 @@ def classify_failures(
     """
     
     failures: list[FailureMode] = []
-    gold_chunk_ids = set(sample.evidence_chunk_ids)
+    resolution = resolve_retrieval_gold(sample, list(retrieved_chunks))
 
-    retrieved_ids = [retrieved.chunk.chunk_id for retrieved in retrieved_chunks]
-    retrieved_id_set = set(retrieved_ids)
-
-    if sample.is_answerable and gold_chunk_ids:
-        if retrieved_id_set.isdisjoint(gold_chunk_ids):
+    if sample.is_answerable and resolution.strategy != "unavailable":
+        if not any(resolution.relevant_flags):
             failures.append(FailureMode.RETRIEVAL_MISS)
         elif retrieval_k is not None:
-            top_k_ids = set(retrieved_ids[:retrieval_k])
-            if top_k_ids.isdisjoint(gold_chunk_ids):
+            if not any(resolution.relevant_flags[:retrieval_k]):
                 failures.append(FailureMode.RETRIEVAL_RANK)
 
     if generated_answer is not None:

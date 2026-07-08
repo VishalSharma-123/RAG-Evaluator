@@ -41,4 +41,37 @@ def load_dataset_from_config(config: DatasetConfig) -> list[EvalSample]:
     """
 
     adapter: DatasetAdapter = build_dataset_adapter(config)
-    return adapter.load()
+    samples = adapter.load()
+    validate_unique_sample_ids(samples, dataset_name=config.name)
+    return samples
+
+
+def validate_unique_sample_ids(
+    samples: list[EvalSample],
+    *,
+    dataset_name: str,
+) -> None:
+    """
+    Ensure a dataset can be persisted with sample_id as its per-run key.
+    """
+
+    first_seen: dict[str, int] = {}
+    duplicates: list[tuple[str, int, int]] = []
+
+    for index, sample in enumerate(samples, start=1):
+        previous_index = first_seen.setdefault(sample.sample_id, index)
+        if previous_index != index:
+            duplicates.append((sample.sample_id, previous_index, index))
+
+    if not duplicates:
+        return
+
+    examples = ", ".join(
+        f"{sample_id!r} at records {first_index} and {duplicate_index}"
+        for sample_id, first_index, duplicate_index in duplicates[:5]
+    )
+    extra = "" if len(duplicates) <= 5 else f" and {len(duplicates) - 5} more"
+    raise ValueError(
+        f"Dataset `{dataset_name}` produced duplicate sample_id values: "
+        f"{examples}{extra}."
+    )
